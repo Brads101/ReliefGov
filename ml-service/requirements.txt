@@ -1,0 +1,4 @@
+# ReliefGov Python ML service dependencies
+# Install into ml-service/.venv via ml-service/setup.bat
+scikit-learn>=1.4
+numpy>=1.26

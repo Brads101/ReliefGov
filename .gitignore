@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Environment & Secrets (Crucial: never commit actual secrets)
+.env
+.env.*
+*.env
+client/.env
+server/.env
+!.env.example
+!client/.env.example
+!server/.env.example
+
+# Python virtual environment & cache
+.venv/
+*/.venv/
+__pycache__/
+*/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Build outputs
+dist/
+*/dist/
+build/
+.cache/
+supabase/.temp/
+.temp/
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log
+npm-debug.log*

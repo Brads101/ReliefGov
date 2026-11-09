@@ -1,0 +1,72 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    color-scheme: light;
+  }
+  body {
+    @apply bg-slate-50/80 text-slate-900 antialiased;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  :focus-visible {
+    outline: 2px solid #245A81;
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  .rg-container {
+    @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
+  .rg-card {
+    @apply rounded-xl border border-slate-200/90 bg-white shadow-[0_2px_12px_-3px_rgba(15,23,42,0.06),0_1px_3px_rgba(15,23,42,0.04)] transition-all duration-200;
+  }
+  .rg-input {
+    @apply block w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm text-slate-900 shadow-sm
+      placeholder:text-slate-400 focus:border-gov-600 focus:outline-none focus:ring-2 focus:ring-gov-600/20 disabled:bg-slate-100 disabled:text-slate-500 transition-colors duration-150;
+  }
+  .rg-label {
+    @apply mb-1.5 block text-[13px] font-semibold text-slate-800;
+  }
+  .rg-hint {
+    @apply mt-1 text-xs text-slate-500 font-normal;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Print layout (Batch 6) — Reports.
+ * On print, only the .print-only report container is shown; navigation,
+ * cards, dialogs and buttons are hidden. Use the browser's
+ * "Save as PDF" in the print dialog for PDF export — no server-side PDF
+ * dependency is required.
+ * ------------------------------------------------------------------ */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .print-only,
+  .print-only * {
+    visibility: visible;
+  }
+  .print-only {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 0;
+  }
+  .print-only table {
+    width: 100%;
+  }
+}

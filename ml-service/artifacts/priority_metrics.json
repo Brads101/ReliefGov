@@ -1,0 +1,117 @@
+{
+  "evaluatedOn": "Measured on the 200 held-out evaluation household records in ReliefGov_Classification_Results.xlsx (test split, random_state=42) from Barangay Tambacan. Internal hold-out evaluation: not an external validation and not a real-world accuracy claim; provides decision support and queue prioritization.",
+  "split": {
+    "trainRows": 800,
+    "testRows": 200,
+    "testSize": 0.2,
+    "randomState": 42,
+    "stratified": true,
+    "splitPerformedBy": "reliefgov_random_forest.joblib (train_test_split), Google Colab"
+  },
+  "nTest": 200,
+  "accuracy": 0.63,
+  "perClassBasis": "Recomputed directly from the 200 test classification rows in ReliefGov_Classification_Results.xlsx.",
+  "perClass": [
+    {
+      "class": "Low",
+      "precision": 0.4167,
+      "recall": 0.25,
+      "f1": 0.3125,
+      "support": 40
+    },
+    {
+      "class": "Moderate",
+      "precision": 0.669,
+      "recall": 0.7787,
+      "f1": 0.7197,
+      "support": 122
+    },
+    {
+      "class": "High",
+      "precision": 0.6176,
+      "recall": 0.5526,
+      "f1": 0.5833,
+      "support": 38
+    }
+  ],
+  "confusionMatrix": {
+    "classes": [
+      "Low",
+      "Moderate",
+      "High"
+    ],
+    "matrix": [
+      [
+        10,
+        30,
+        0
+      ],
+      [
+        14,
+        95,
+        13
+      ],
+      [
+        0,
+        17,
+        21
+      ]
+    ],
+    "orientation": "rows = actual (source dataset label), columns = model prediction",
+    "note": "Evaluated across 9 multi-dimensional vulnerability and damage indicators: Purok, Sex, Age, Household Size, Ownership, Damage Classification, Disability Status, Flood Exposure, and Supporting Documents."
+  },
+  "fullDataAgreement": {
+    "evaluatedOn": "Agreement across the collected household records for Barangay Tambacan (training-set agreement).",
+    "nRows": 1000,
+    "accuracy": 0.63
+  },
+  "labelMapping": "The model outputs uppercase ['LOW', 'MEDIUM', 'HIGH']; this system maps 'MEDIUM' to 'Moderate'. Class display order: Low, Moderate, High.",
+  "featureImportance": [
+    {
+      "feature": "house_status",
+      "label": "House ownership / tenurial status",
+      "share": 0.2327
+    },
+    {
+      "feature": "purok",
+      "label": "Purok / geographic zone",
+      "share": 0.2131
+    },
+    {
+      "feature": "damage_extent",
+      "label": "Property damage classification",
+      "share": 0.1717
+    },
+    {
+      "feature": "age",
+      "label": "Beneficiary age",
+      "share": 0.1535
+    },
+    {
+      "feature": "household_size",
+      "label": "Household family size",
+      "share": 0.0979
+    },
+    {
+      "feature": "location_flood_exposure",
+      "label": "Purok flood exposure zone",
+      "share": 0.0403
+    },
+    {
+      "feature": "sex",
+      "label": "Sex / gender",
+      "share": 0.0362
+    },
+    {
+      "feature": "is_pwd",
+      "label": "Disability status (PWD)",
+      "share": 0.0277
+    },
+    {
+      "feature": "supporting_documents_complete",
+      "label": "Documentary verification completeness",
+      "share": 0.0268
+    }
+  ],
+  "importanceBasis": "Share of the 100-tree Random Forest total Gini impurity reduction across all 9 features."
+}
