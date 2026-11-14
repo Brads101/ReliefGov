@@ -295,22 +295,19 @@ function QueueTab({ onSelect }) {
     {
       key: 'validation_status',
       header: 'Validation',
-      render: (r) => <StatusBadge meta={VALIDATION_STATUS_META} value={r.validation_status} />
+      render: (r) => (
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <StatusBadge meta={VALIDATION_STATUS_META} value={r.validation_status} />
+          {r.duplicate_flagged && r.validation_status !== 'Duplicate' && (
+            <Badge tone="danger">Flagged</Badge>
+          )}
+        </div>
+      )
     },
     {
       key: 'submitted_at',
       header: 'Submitted',
       render: (r) => <span className="whitespace-nowrap">{dateFmt(r.submitted_at)}</span>
-    },
-    {
-      key: 'duplicate_flagged',
-      header: 'Duplicate',
-      render: (r) =>
-        r.duplicate_flagged ? (
-          <Badge tone="danger">Flagged</Badge>
-        ) : (
-          <span className="text-slate-400">—</span>
-        )
     },
     {
       key: 'vulnerability_class',
