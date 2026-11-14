@@ -100,12 +100,6 @@ export default function Register() {
                 />
               </Field>
 
-              <p className="rg-hint">
-                Public registration creates <strong>beneficiary</strong> accounts only.
-                Barangay Staff and CSWD Staff accounts are created and approved by the
-                CSWD Office, Iligan City.
-              </p>
-
               <Button type="submit" loading={busy} className="w-full">
                 Create account
               </Button>

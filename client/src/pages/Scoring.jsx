@@ -477,21 +477,22 @@ export default function Scoring() {
 
   const columns = [
     {
-      key: 'record',
-      header: 'Beneficiary',
-      width: '23%',
-      render: (r) => (
-        <div>
-          <p className="font-medium text-navy-900">{r.full_name}</p>
-          <p className="font-mono text-[12px] text-slate-500">{r.beneficiary_number}</p>
-        </div>
-      )
+      key: 'beneficiary_number',
+      header: 'Reference',
+      width: '15%',
+      render: (r) => <span className="font-mono text-[12.5px] text-navy-700">{r.beneficiary_number}</span>
     },
-    { key: 'purok', header: 'Purok', width: '11%', render: (r) => <span className="text-[13px]">{r.purok || '—'}</span> },
+    {
+      key: 'name',
+      header: 'Name',
+      width: '18%',
+      render: (r) => <span className="font-medium truncate block">{r.full_name}</span>
+    },
+    { key: 'purok', header: 'Purok', width: '9%', render: (r) => <span className="text-[13px]">{r.purok || '—'}</span> },
     {
       key: 'state',
       header: 'Score state',
-      width: '14%',
+      width: '13%',
       render: (r) => (
         <Badge tone={SCORE_STATE_META[r.state]?.tone || 'neutral'}>
           {SCORE_STATE_META[r.state]?.label || r.state}
@@ -501,7 +502,7 @@ export default function Scoring() {
     {
       key: 'class',
       header: 'Priority category',
-      width: '17%',
+      width: '15%',
       render: (r) =>
         r.vulnerability_class ? (
           <Badge tone={vulnerabilityClassMeta(r.vulnerability_class)?.tone || 'neutral'}>
@@ -514,8 +515,7 @@ export default function Scoring() {
     {
       key: 'score',
       header: 'Priority score (0–100)',
-      width: '18%',
-      align: 'center',
+      width: '13%',
       render: (r) =>
         r.score !== null ? (
           <span className="font-semibold tabular-nums text-navy-900">
