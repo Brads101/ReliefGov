@@ -295,14 +295,7 @@ function QueueTab({ onSelect }) {
     {
       key: 'validation_status',
       header: 'Validation',
-      render: (r) => (
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <StatusBadge meta={VALIDATION_STATUS_META} value={r.validation_status} />
-          {r.duplicate_flagged && r.validation_status !== 'Duplicate' && (
-            <Badge tone="danger">Flagged</Badge>
-          )}
-        </div>
-      )
+      render: (r) => <StatusBadge meta={VALIDATION_STATUS_META} value={r.validation_status} />
     },
     {
       key: 'submitted_at',
