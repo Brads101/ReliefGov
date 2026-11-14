@@ -283,28 +283,33 @@ function QueueTab({ onSelect }) {
     {
       key: 'beneficiary_number',
       header: 'Reference',
+      width: '16%',
       render: (r) => <span className="font-mono text-[12.5px] text-navy-700">{r.beneficiary_number}</span>
     },
-    { key: 'name', header: 'Name', render: (r) => <span className="font-medium">{fullName(r)}</span> },
-    { key: 'purok', header: 'Purok' },
+    { key: 'name', header: 'Name', width: '20%', render: (r) => <span className="font-medium truncate block">{fullName(r)}</span> },
+    { key: 'purok', header: 'Purok', width: '10%' },
     {
       key: 'application_status',
       header: 'Status',
+      width: '12%',
       render: (r) => <StatusBadge meta={STATUS_META} value={r.application_status} />
     },
     {
       key: 'validation_status',
       header: 'Validation',
+      width: '12%',
       render: (r) => <StatusBadge meta={VALIDATION_STATUS_META} value={r.validation_status} />
     },
     {
       key: 'submitted_at',
       header: 'Submitted',
+      width: '11%',
       render: (r) => <span className="whitespace-nowrap">{dateFmt(r.submitted_at)}</span>
     },
     {
       key: 'vulnerability_class',
       header: 'Vulnerability',
+      width: '13%',
       render: (r) =>
         r.vulnerability_class ? (
           <Badge tone={vulnerabilityClassMeta(r.vulnerability_class)?.tone || 'info'}>
@@ -317,6 +322,7 @@ function QueueTab({ onSelect }) {
     {
       key: 'actions',
       header: '',
+      width: '6%',
       align: 'right',
       render: (r) => (
         <Button size="sm" variant="secondary" onClick={() => onSelect(r)}>
@@ -470,7 +476,7 @@ function QueueTab({ onSelect }) {
                       {group.rows.length} application{group.rows.length === 1 ? '' : 's'}
                     </span>
                   </div>
-                  <Table columns={columns} rows={group.rows} keyFn={(r) => r.id} />
+                  <Table columns={columns} rows={group.rows} keyFn={(r) => r.id} fixed />
                 </div>
               ))}
             </div>
@@ -479,6 +485,7 @@ function QueueTab({ onSelect }) {
               columns={columns}
               rows={sortedRows}
               keyFn={(r) => r.id}
+              fixed
             />
           )}
         </>

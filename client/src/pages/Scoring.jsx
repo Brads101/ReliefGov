@@ -479,6 +479,7 @@ export default function Scoring() {
     {
       key: 'record',
       header: 'Beneficiary',
+      width: '23%',
       render: (r) => (
         <div>
           <p className="font-medium text-navy-900">{r.full_name}</p>
@@ -486,10 +487,11 @@ export default function Scoring() {
         </div>
       )
     },
-    { key: 'purok', header: 'Purok', render: (r) => <span className="text-[13px]">{r.purok || '—'}</span> },
+    { key: 'purok', header: 'Purok', width: '11%', render: (r) => <span className="text-[13px]">{r.purok || '—'}</span> },
     {
       key: 'state',
       header: 'Score state',
+      width: '14%',
       render: (r) => (
         <Badge tone={SCORE_STATE_META[r.state]?.tone || 'neutral'}>
           {SCORE_STATE_META[r.state]?.label || r.state}
@@ -499,6 +501,7 @@ export default function Scoring() {
     {
       key: 'class',
       header: 'Priority category',
+      width: '17%',
       render: (r) =>
         r.vulnerability_class ? (
           <Badge tone={vulnerabilityClassMeta(r.vulnerability_class)?.tone || 'neutral'}>
@@ -511,6 +514,7 @@ export default function Scoring() {
     {
       key: 'score',
       header: 'Priority score (0–100)',
+      width: '18%',
       align: 'center',
       render: (r) =>
         r.score !== null ? (
@@ -524,6 +528,7 @@ export default function Scoring() {
     {
       key: 'scored_at',
       header: 'Scored',
+      width: '11%',
       render: (r) =>
         r.scored_at ? (
           <span className="text-[12.5px] tabular-nums text-slate-600">
@@ -536,6 +541,7 @@ export default function Scoring() {
     {
       key: 'actions',
       header: '',
+      width: '6%',
       align: 'right',
       render: (r) => (
         <Button size="sm" variant="secondary" onClick={() => setSelectedId(r.id)}>
@@ -745,7 +751,7 @@ export default function Scoring() {
                         )}
                       </div>
                     </div>
-                    <Table columns={columns} rows={group.rows} keyFn={(r) => r.id} />
+                    <Table columns={columns} rows={group.rows} keyFn={(r) => r.id} fixed />
                   </div>
                 ))}
               </div>
@@ -754,6 +760,7 @@ export default function Scoring() {
                 columns={columns}
                 rows={data.rows.filter((r) => r.application_status !== 'Rejected')}
                 keyFn={(r) => r.id}
+                fixed
               />
             )}
           </>
