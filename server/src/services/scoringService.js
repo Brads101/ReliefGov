@@ -109,8 +109,8 @@ async function getRecordOrThrow(id) {
     .eq('id', id)
     .maybeSingle();
   if (error) throw new HttpError(500, error.message);
-  if (!data || data.barangay !== 'Tambacan' || data.application_status === 'Draft') {
-    throw notFound('Beneficiary record not found.');
+  if (!data || data.barangay !== 'Tambacan' || data.application_status === 'Draft' || data.application_status === 'Rejected') {
+    throw notFound('Beneficiary record not found or has been rejected.');
   }
   return withDamageEvidence(data);
 }
@@ -256,7 +256,8 @@ export async function listScores(user, filters = {}) {
     .from('beneficiaries')
     .select(RECORD_COLUMNS, { count: 'exact' })
     .eq('barangay', 'Tambacan')
-    .neq('application_status', 'Draft');
+    .neq('application_status', 'Draft')
+    .neq('application_status', 'Rejected');
 
   if (from) query = query.gte('submitted_at', new Date(`${from}T00:00:00`).toISOString());
   if (to) query = query.lte('submitted_at', new Date(`${to}T23:59:59.999`).toISOString());
@@ -779,7 +780,8 @@ export async function getSummary(user) {
     .from('beneficiaries')
     .select('id, application_status, household_size, income_level, damage_extent, house_status')
     .eq('barangay', 'Tambacan')
-    .neq('application_status', 'Draft');
+    .neq('application_status', 'Draft')
+    .neq('application_status', 'Rejected');
   if (error) throw new HttpError(500, error.message);
 
   const rows = records || [];

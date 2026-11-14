@@ -182,12 +182,12 @@ function StaffOperationsPanel({ refreshToken }) {
           to="/validation?status=Under Verification"
         />
         <StatCard
-          label="Returned for correction"
-          value={queue.needs_correction}
-          tone="warning"
-          hint="Waiting on the applicant"
-          icon={<Icon name="bell" className="h-5 w-5" />}
-          to="/validation?status=Needs Correction"
+          label="Rejected"
+          value={queue.rejected}
+          tone="danger"
+          hint="Ineligible or disqualified"
+          icon={<Icon name="xCircle" className="h-5 w-5" />}
+          to="/validation?status=Rejected"
         />
         <StatCard
           label="Open duplicate flags"
@@ -656,12 +656,12 @@ export default function Dashboard() {
               to="/beneficiaries?status=Pending"
             />
             <StatCard
-              label="Flagged"
-              value={counts.flagged}
+              label="Duplicate"
+              value={counts.duplicate ?? counts.flagged}
               tone="danger"
-              hint="Possible duplicate or discrepancy"
-              icon={<Icon name="bell" className="h-5 w-5" />}
-              to="/beneficiaries?status=Flagged"
+              hint="Confirmed duplicate records"
+              icon={<Icon name="users" className="h-5 w-5" />}
+              to="/beneficiaries?status=Duplicate"
             />
           </div>
 

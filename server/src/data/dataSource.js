@@ -140,6 +140,7 @@ export async function counts() {
       verified: by('Verified'),
       pending: by('Pending'),
       flagged: by('Flagged'),
+      duplicate: by('Duplicate'),
       scored: rows.filter((r) => r.vulnerability_score !== null).length
     };
   }
@@ -170,6 +171,7 @@ export async function counts() {
     verified: await stat('Verified'),
     pending: await stat('Pending'),
     flagged: await stat('Flagged'),
+    duplicate: await stat('Duplicate'),
     scored: scoredResult.count || 0
   };
 }

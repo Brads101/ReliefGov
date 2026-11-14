@@ -409,6 +409,7 @@ export default function Scoring() {
     yesterday.setDate(now.getDate() - 1);
 
     for (const row of data.rows) {
+      if (row.application_status === 'Rejected') continue;
       let key = 'no-date';
       let label = 'No submission date';
       let isToday = false;
@@ -751,7 +752,7 @@ export default function Scoring() {
             ) : (
               <Table
                 columns={columns}
-                rows={data.rows}
+                rows={data.rows.filter((r) => r.application_status !== 'Rejected')}
                 keyFn={(r) => r.id}
               />
             )}

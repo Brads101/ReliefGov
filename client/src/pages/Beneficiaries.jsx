@@ -136,6 +136,7 @@ export default function Beneficiaries() {
               options={[
                 { value: 'Verified', label: 'Verified' },
                 { value: 'Pending', label: 'Pending' },
+                { value: 'Duplicate', label: 'Duplicate' },
                 { value: 'Flagged', label: 'Flagged' }
               ]}
             />
