@@ -1,9 +1,4 @@
-export const BASE = (
-  import.meta.env.VITE_API_URL ||
-  (typeof window !== 'undefined' && window.location.hostname.includes('vercel.app')
-    ? 'https://reliefgov.onrender.com/api'
-    : '/api')
-).replace(/\/$/, '');
+export const BASE = (import.meta.env.VITE_API_URL || '/api').replace(/\/$/, '');
 
 export class ApiError extends Error {
   constructor(status, message, details) {
