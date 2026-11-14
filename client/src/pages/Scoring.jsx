@@ -715,9 +715,6 @@ export default function Scoring() {
                   <div key={group.key} className="overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-xs">
                     <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/80 bg-slate-50/90 px-4 py-2.5">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="flex h-5 w-5 items-center justify-center rounded bg-gov-100 text-[11px] text-gov-800">
-                          📅
-                        </span>
                         <span className="text-[13px] font-bold text-slate-900">{group.label}</span>
                         {group.isToday && (
                           <Badge tone="success" className="px-2 py-0 text-[10.5px]">Today's Batch</Badge>
