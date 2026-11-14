@@ -1,4 +1,4 @@
-const BASE = (
+export const BASE = (
   import.meta.env.VITE_API_URL ||
   (typeof window !== 'undefined' && window.location.hostname.includes('vercel.app')
     ? 'https://reliefgov.onrender.com/api'

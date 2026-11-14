@@ -1,4 +1,4 @@
-import { ApiError, api } from './api.js';
+import { ApiError, api, BASE } from './api.js';
 
 /**
  * Supporting-document uploads with a real progress bar.
@@ -14,8 +14,6 @@ import { ApiError, api } from './api.js';
  * extension as fallbacks — the data URL is then built with that canonical
  * type so a `.jfif`/no-MIME photo uploads exactly like any other JPEG.
  */
-
-const BASE = (import.meta.env.VITE_API_URL || '/api').replace(/\/$/, '');
 
 export const MAX_FILE_BYTES = 5 * 1024 * 1024; // matches the server (5 MB)
 export const ACCEPTED_MIME = ['application/pdf', 'image/jpeg', 'image/png'];

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { api, ApiError } from '../lib/api.js';
+import { api, ApiError, BASE } from '../lib/api.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import PageHeader from '../components/ui/PageHeader.jsx';
 import Card from '../components/ui/Card.jsx';
@@ -51,10 +51,9 @@ async function fetchCsv(query) {
   } catch {
     token = null;
   }
-  const base = (import.meta.env.VITE_API_URL || '/api').replace(/\/$/, '');
   let response;
   try {
-    response = await fetch(`${base}/reports/export?${query}&format=csv`, {
+    response = await fetch(`${BASE}/reports/export?${query}&format=csv`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {}
     });
   } catch {
