@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import PageHeader from '../components/ui/PageHeader.jsx';
 import Card from '../components/ui/Card.jsx';
@@ -13,11 +14,19 @@ import { incomeLevelLabel, VALIDATION_STATUS_META } from '../lib/constants.js';
 const fullName = (r) => `${r.last_name}, ${r.first_name} ${r.middle_name || ''}`.trim();
 
 export default function Beneficiaries() {
-  const [search, setSearch] = useState('');
-  const [status, setStatus] = useState('');
+  const [searchParams] = useSearchParams();
+  const [search, setSearch] = useState(() => searchParams.get('search') || '');
+  const [status, setStatus] = useState(() => searchParams.get('status') || '');
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const paramStatus = searchParams.get('status');
+    if (paramStatus !== null) {
+      setStatus(paramStatus);
+    }
+  }, [searchParams]);
 
   const load = useCallback(async () => {
     setLoading(true);

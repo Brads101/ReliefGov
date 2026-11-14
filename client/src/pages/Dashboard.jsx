@@ -131,6 +131,7 @@ function MyApplicationPanel() {
  * and prepared-report visibility — all computed live for Tambacan.
  */
 function StaffOperationsPanel({ refreshToken }) {
+  const { user } = useAuth();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -158,6 +159,7 @@ function StaffOperationsPanel({ refreshToken }) {
       .replace(/\b\w/g, (c) => c.toUpperCase());
 
   const maxPurok = Math.max(...(purokBreakdown || []).map((p) => p.count), 1);
+  const duplicateTo = user?.role === 'cswd_staff' ? '/validation?tab=duplicates' : '/validation?flaggedOnly=true';
 
   return (
     <div className="space-y-6">
@@ -169,6 +171,7 @@ function StaffOperationsPanel({ refreshToken }) {
           tone="warning"
           hint="New applications to verify"
           icon={<Icon name="file" className="h-5 w-5" />}
+          to="/validation?status=Pending"
         />
         <StatCard
           label="Awaiting CSWD"
@@ -176,6 +179,7 @@ function StaffOperationsPanel({ refreshToken }) {
           tone="info"
           hint="Endorsed for final review"
           icon={<Icon name="shield" className="h-5 w-5" />}
+          to="/validation?status=Under Verification"
         />
         <StatCard
           label="Returned for correction"
@@ -183,6 +187,7 @@ function StaffOperationsPanel({ refreshToken }) {
           tone="warning"
           hint="Waiting on the applicant"
           icon={<Icon name="bell" className="h-5 w-5" />}
+          to="/validation?status=Needs Correction"
         />
         <StatCard
           label="Open duplicate flags"
@@ -190,6 +195,7 @@ function StaffOperationsPanel({ refreshToken }) {
           tone={openDuplicateFlags > 0 ? 'danger' : 'success'}
           hint={openDuplicateFlags > 0 ? 'Awaiting reviewer decisions' : 'Nothing waiting on review'}
           icon={<Icon name="users" className="h-5 w-5" />}
+          to={duplicateTo}
         />
       </div>
 
@@ -611,6 +617,7 @@ export default function Dashboard() {
               tone="info"
               hint={synthetic ? 'Synthetic sample records' : 'Barangay Tambacan records'}
               icon={<Icon name="users" className="h-5 w-5" />}
+              to="/beneficiaries"
             />
             <StatCard
               label="Verified"
@@ -618,6 +625,7 @@ export default function Dashboard() {
               tone="success"
               hint="Passed data validation"
               icon={<Icon name="shield" className="h-5 w-5" />}
+              to="/beneficiaries?status=Verified"
             />
             <StatCard
               label="Pending validation"
@@ -625,6 +633,7 @@ export default function Dashboard() {
               tone="warning"
               hint="Awaiting staff review"
               icon={<Icon name="file" className="h-5 w-5" />}
+              to="/beneficiaries?status=Pending"
             />
             <StatCard
               label="Flagged"
@@ -632,6 +641,7 @@ export default function Dashboard() {
               tone="danger"
               hint="Possible duplicate or discrepancy"
               icon={<Icon name="bell" className="h-5 w-5" />}
+              to="/beneficiaries?status=Flagged"
             />
           </div>
 

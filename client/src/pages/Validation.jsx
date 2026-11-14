@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { ROLE_LABELS } from '../config/navigation.jsx';
@@ -124,17 +125,26 @@ function ErrorText({ error }) {
 
 function QueueTab({ onSelect }) {
   const { user } = useAuth();
-  const [search, setSearch] = useState('');
-  const [status, setStatus] = useState('');
-  const [purok, setPurok] = useState('');
-  const [from, setFrom] = useState('');
-  const [to, setTo] = useState('');
+  const [searchParams] = useSearchParams();
+  const [search, setSearch] = useState(() => searchParams.get('search') || '');
+  const [status, setStatus] = useState(() => searchParams.get('status') || '');
+  const [purok, setPurok] = useState(() => searchParams.get('purok') || '');
+  const [from, setFrom] = useState(() => searchParams.get('from') || '');
+  const [to, setTo] = useState(() => searchParams.get('to') || '');
   const [activePreset, setActivePreset] = useState('all');
   const [groupByDate, setGroupByDate] = useState(true);
-  const [flaggedOnly, setFlaggedOnly] = useState(false);
+  const [flaggedOnly, setFlaggedOnly] = useState(() => searchParams.get('flaggedOnly') === 'true' || searchParams.get('duplicate') === 'flagged');
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const s = searchParams.get('status');
+    if (s !== null) setStatus(s);
+    if (searchParams.has('flaggedOnly') || searchParams.has('duplicate')) {
+      setFlaggedOnly(searchParams.get('flaggedOnly') === 'true' || searchParams.get('duplicate') === 'flagged');
+    }
+  }, [searchParams]);
 
   const applyPreset = (preset) => {
     setActivePreset(preset);
@@ -1746,10 +1756,21 @@ function Detail({ id, initialTab, onBack, onChanged }) {
 export default function Validation() {
   const { user } = useAuth();
   const isCswd = user?.role === 'cswd_staff';
-  const [view, setView] = useState('queue'); // queue | duplicates | detail
+  const [searchParams] = useSearchParams();
+  const initialView = searchParams.get('tab') === 'duplicates' && isCswd ? 'duplicates' : 'queue';
+  const [view, setView] = useState(initialView); // queue | duplicates | detail
   const [detailId, setDetailId] = useState(null);
   const [detailTab, setDetailTab] = useState('profile');
   const [refreshKey, setRefreshKey] = useState(0);
+
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab === 'duplicates' && isCswd) {
+      setView('duplicates');
+    } else if (tab === 'queue' || searchParams.has('status') || searchParams.has('flaggedOnly')) {
+      setView('queue');
+    }
+  }, [searchParams, isCswd]);
 
   const openDetail = (rowOrId, tab = 'profile') => {
     setDetailId(typeof rowOrId === 'string' ? rowOrId : rowOrId.id);
