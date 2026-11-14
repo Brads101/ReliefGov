@@ -736,13 +736,13 @@ export default function Scoring() {
                           </span>
                         )}
                         {group.modCount > 0 && (
-                          <span className="rounded-full bg-amber-50 border border-amber-200 px-2 py-0.5 font-bold text-amber-800 text-[11px]">
-                            {group.modCount} Moderate
+                          <span className="rounded-full bg-sky-50 border border-sky-200 px-2 py-0.5 font-bold text-sky-800 text-[11px]">
+                            {group.modCount} Medium Priority
                           </span>
                         )}
                         {group.lowCount > 0 && (
-                          <span className="rounded-full bg-slate-100 border border-slate-200 px-2 py-0.5 font-bold text-slate-700 text-[11px]">
-                            {group.lowCount} Low
+                          <span className="rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 font-bold text-emerald-800 text-[11px]">
+                            {group.lowCount} Low Priority
                           </span>
                         )}
                       </div>
