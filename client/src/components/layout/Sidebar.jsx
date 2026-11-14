@@ -7,6 +7,7 @@ export default function Sidebar({ role, mobileOpen, onClose }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const sections = navForRole(role || 'beneficiary');
+  const isCswd = role === 'cswd_staff';
 
   // Account initials — same derivation the top bar used
   const initials = (user?.full_name || user?.email || '?')
@@ -49,20 +50,40 @@ export default function Sidebar({ role, mobileOpen, onClose }) {
           </button>
         </div>
 
-        <nav className="flex-1 px-3 py-2 space-y-2 overflow-hidden select-none">
+        <nav
+          className={`flex-1 overflow-hidden select-none ${
+            isCswd
+              ? 'px-3 py-1.5 space-y-1.5'
+              : role === 'beneficiary'
+              ? 'px-3.5 py-5 space-y-8'
+              : 'px-3.5 py-4 space-y-6'
+          }`}
+        >
           {sections.map((section) => (
             <div key={section.label}>
-              <p className="px-2.5 pb-1 pt-0.5 text-[10px] font-bold uppercase tracking-[0.18em] text-sky-400/90">
+              <p
+                className={`font-bold uppercase tracking-[0.18em] text-sky-400/90 ${
+                  isCswd
+                    ? 'px-2 pb-0.5 pt-0.5 text-[9.5px]'
+                    : 'px-2.5 pb-1.5 pt-1 text-[11px]'
+                }`}
+              >
                 {section.label}
               </p>
-              <ul className="space-y-0.5">
+              <ul className={isCswd ? 'space-y-0.5' : role === 'beneficiary' ? 'space-y-2.5' : 'space-y-2'}>
                 {section.items.map((item) => (
                   <li key={item.to}>
                     <NavLink
                       to={item.to}
                       onClick={onClose}
                       className={({ isActive }) =>
-                        `flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[13px] transition-all duration-150 ${
+                        `flex items-center rounded-lg transition-all duration-150 ${
+                          isCswd
+                            ? 'gap-2 px-2.5 py-1 text-[12px]'
+                            : role === 'beneficiary'
+                            ? 'gap-3 px-3.5 py-3 text-[14px]'
+                            : 'gap-3 px-3 py-2.5 text-[13.5px]'
+                        } ${
                           isActive
                             ? 'bg-gradient-to-r from-gov-500/35 via-sky-500/20 to-white/[0.02] text-white font-semibold border-l-2 border-sky-400 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]'
                             : 'text-slate-300 font-medium hover:bg-white/[0.07] hover:text-white'
@@ -71,7 +92,12 @@ export default function Sidebar({ role, mobileOpen, onClose }) {
                     >
                       {({ isActive }) => (
                         <>
-                          <Icon name={item.icon} className={`h-4 w-4 shrink-0 transition-colors ${isActive ? 'text-sky-300' : 'text-slate-400'}`} />
+                          <Icon
+                            name={item.icon}
+                            className={`shrink-0 transition-colors ${
+                              isCswd ? 'h-3.5 w-3.5' : 'h-4.5 w-4.5'
+                            } ${isActive ? 'text-sky-300' : 'text-slate-400'}`}
+                          />
                           <span className="truncate">{item.label}</span>
                         </>
                       )}
@@ -84,17 +110,19 @@ export default function Sidebar({ role, mobileOpen, onClose }) {
         </nav>
 
         {/* Signed-in account + sign out card */}
-        <div className="shrink-0 border-t border-white/[0.08] p-2.5">
-          <div className="rounded-xl border border-white/10 bg-white/[0.04] p-2.5 shadow-inner">
-            <div className="flex items-center gap-2">
+        <div className={`shrink-0 border-t border-white/[0.08] ${isCswd ? 'p-2' : 'p-3'}`}>
+          <div className={`rounded-xl border border-white/10 bg-white/[0.04] shadow-inner ${isCswd ? 'p-2' : 'p-2.5'}`}>
+            <div className="flex items-center gap-2.5">
               <span
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-tr from-gov-600 to-sky-500 text-[11px] font-bold uppercase tracking-wider text-white shadow-md ring-1 ring-white/20"
+                className={`shrink-0 flex items-center justify-center rounded-lg bg-gradient-to-tr from-gov-600 to-sky-500 font-bold uppercase tracking-wider text-white shadow-md ring-1 ring-white/20 ${
+                  isCswd ? 'h-6 w-6 text-[10px]' : 'h-8 w-8 text-xs'
+                }`}
                 aria-hidden="true"
               >
                 {initials}
               </span>
               <div className="min-w-0 flex-1 leading-tight">
-                <p className="truncate text-[12.5px] font-semibold text-white">{user?.full_name}</p>
+                <p className="truncate text-[13px] font-semibold text-white">{user?.full_name}</p>
                 <p className="truncate text-[11px] text-sky-200/80">
                   {ROLE_LABELS[user?.role] || user?.role}
                   {user?.barangay ? ` · ${user.barangay}` : ''}
@@ -107,7 +135,9 @@ export default function Sidebar({ role, mobileOpen, onClose }) {
                 logout();
                 navigate('/login');
               }}
-              className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-red-500/30 bg-red-500/10 px-2.5 py-1 text-[12px] font-semibold text-red-200 transition-all hover:bg-red-500/25 hover:border-red-400/50 hover:text-white shadow-sm"
+              className={`mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-red-500/30 bg-red-500/10 font-semibold text-red-200 transition-all hover:bg-red-500/25 hover:border-red-400/50 hover:text-white shadow-sm ${
+                isCswd ? 'px-2 py-0.5 text-[11px]' : 'px-2.5 py-1.5 text-[12px]'
+              }`}
             >
               <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M13 3h3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-3M9 14l4-4-4-4M13 10H3" strokeLinecap="round" strokeLinejoin="round" />
