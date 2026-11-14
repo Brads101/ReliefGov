@@ -510,7 +510,7 @@ export default function Scoring() {
     {
       key: 'score',
       header: 'Priority score (0–100)',
-      align: 'right',
+      align: 'center',
       render: (r) =>
         r.score !== null ? (
           <span className="font-semibold tabular-nums text-navy-900">

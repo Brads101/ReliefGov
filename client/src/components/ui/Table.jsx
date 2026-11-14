@@ -10,8 +10,12 @@ export function Table({ columns, rows, keyFn, emptyState, className = '' }) {
               <th
                 key={col.key}
                 scope="col"
-                className={`px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-600 ${
-                  col.align === 'right' ? 'text-right' : ''
+                className={`px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-600 ${
+                  col.align === 'right'
+                    ? 'text-right'
+                    : col.align === 'center'
+                    ? 'text-center'
+                    : 'text-left'
                 }`}
               >
                 {col.header}
@@ -29,7 +33,11 @@ export function Table({ columns, rows, keyFn, emptyState, className = '' }) {
                 <td
                   key={col.key}
                   className={`px-4 py-3 align-middle text-slate-800 ${
-                    col.align === 'right' ? 'text-right' : ''
+                    col.align === 'right'
+                      ? 'text-right'
+                      : col.align === 'center'
+                      ? 'text-center'
+                      : 'text-left'
                   }`}
                 >
                   {col.render ? col.render(row) : row[col.key]}
