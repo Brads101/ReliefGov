@@ -51,26 +51,26 @@ export default function Sidebar({ role, mobileOpen, onClose }) {
         </div>
 
         <nav
-          className={`flex-1 overflow-hidden select-none ${
+          className={`flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] select-none ${
             isCswd
-              ? 'px-3 py-1.5 space-y-1.5'
+              ? 'px-2.5 py-1.5 space-y-2'
               : role === 'beneficiary'
-              ? 'px-3.5 py-5 space-y-8'
-              : 'px-3.5 py-4 space-y-6'
+              ? 'px-3 py-3 space-y-4'
+              : 'px-3 py-2 space-y-3'
           }`}
         >
           {sections.map((section) => (
             <div key={section.label}>
               <p
-                className={`font-bold uppercase tracking-[0.18em] text-sky-400/90 ${
+                className={`font-bold uppercase tracking-[0.16em] text-sky-400/90 ${
                   isCswd
                     ? 'px-2 pb-0.5 pt-0.5 text-[9.5px]'
-                    : 'px-2.5 pb-1.5 pt-1 text-[11px]'
+                    : 'px-2.5 pb-1 pt-1 text-[10px]'
                 }`}
               >
                 {section.label}
               </p>
-              <ul className={isCswd ? 'space-y-0.5' : role === 'beneficiary' ? 'space-y-2.5' : 'space-y-2'}>
+              <ul className={isCswd ? 'space-y-0.5' : 'space-y-1'}>
                 {section.items.map((item) => (
                   <li key={item.to}>
                     <NavLink
@@ -79,10 +79,8 @@ export default function Sidebar({ role, mobileOpen, onClose }) {
                       className={({ isActive }) =>
                         `flex items-center rounded-lg transition-all duration-150 ${
                           isCswd
-                            ? 'gap-2 px-2.5 py-1 text-[12px]'
-                            : role === 'beneficiary'
-                            ? 'gap-3 px-3.5 py-3 text-[14px]'
-                            : 'gap-3 px-3 py-2.5 text-[13.5px]'
+                            ? 'gap-2 px-2.5 py-1 text-[11.5px]'
+                            : 'gap-2.5 px-2.5 py-1.5 text-[13px]'
                         } ${
                           isActive
                             ? 'bg-gradient-to-r from-gov-500/35 via-sky-500/20 to-white/[0.02] text-white font-semibold border-l-2 border-sky-400 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]'
@@ -95,7 +93,7 @@ export default function Sidebar({ role, mobileOpen, onClose }) {
                           <Icon
                             name={item.icon}
                             className={`shrink-0 transition-colors ${
-                              isCswd ? 'h-4 w-4' : 'h-5 w-5'
+                              isCswd ? 'h-3.5 w-3.5' : 'h-4 w-4'
                             } ${isActive ? 'text-sky-300' : 'text-slate-400'}`}
                           />
                           <span className="truncate">{item.label}</span>
@@ -110,20 +108,20 @@ export default function Sidebar({ role, mobileOpen, onClose }) {
         </nav>
 
         {/* Signed-in account + sign out card */}
-        <div className={`shrink-0 border-t border-white/[0.08] ${isCswd ? 'p-2' : 'p-3'}`}>
-          <div className={`rounded-xl border border-white/10 bg-white/[0.04] shadow-inner ${isCswd ? 'p-2' : 'p-2.5'}`}>
-            <div className="flex items-center gap-2.5">
+        <div className={`shrink-0 border-t border-white/[0.08] ${isCswd ? 'p-2' : 'p-2.5'}`}>
+          <div className={`rounded-xl border border-white/10 bg-white/[0.04] shadow-inner ${isCswd ? 'p-1.5' : 'p-2'}`}>
+            <div className="flex items-center gap-2">
               <span
                 className={`shrink-0 flex items-center justify-center rounded-lg bg-gradient-to-tr from-gov-600 to-sky-500 font-bold uppercase tracking-wider text-white shadow-md ring-1 ring-white/20 ${
-                  isCswd ? 'h-6 w-6 text-[10px]' : 'h-8 w-8 text-xs'
+                  isCswd ? 'h-6 w-6 text-[10px]' : 'h-7 w-7 text-[11px]'
                 }`}
                 aria-hidden="true"
               >
                 {initials}
               </span>
               <div className="min-w-0 flex-1 leading-tight">
-                <p className="truncate text-[13px] font-semibold text-white">{user?.full_name}</p>
-                <p className="truncate text-[11px] text-sky-200/80">
+                <p className="truncate text-[12.5px] font-semibold text-white">{user?.full_name}</p>
+                <p className="truncate text-[10.5px] text-sky-200/80">
                   {ROLE_LABELS[user?.role] || user?.role}
                   {user?.barangay ? ` · ${user.barangay}` : ''}
                 </p>
@@ -135,8 +133,8 @@ export default function Sidebar({ role, mobileOpen, onClose }) {
                 logout();
                 navigate('/login');
               }}
-              className={`mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-red-500/30 bg-red-500/10 font-semibold text-red-200 transition-all hover:bg-red-500/25 hover:border-red-400/50 hover:text-white shadow-sm ${
-                isCswd ? 'px-2 py-0.5 text-[11px]' : 'px-2.5 py-1.5 text-[12px]'
+              className={`mt-1.5 flex w-full items-center justify-center gap-1.5 rounded-lg border border-red-500/30 bg-red-500/10 font-semibold text-red-200 transition-all hover:bg-red-500/25 hover:border-red-400/50 hover:text-white shadow-sm ${
+                isCswd ? 'px-2 py-0.5 text-[10.5px]' : 'px-2 py-1 text-[11.5px]'
               }`}
             >
               <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2">
