@@ -51,7 +51,7 @@ export function navForRole(role) {
   })).filter((section) => section.items.length > 0);
 }
 
-export function Icon({ name, className = 'h-4.5 w-4.5' }) {
+export function Icon({ name, className = 'h-5 w-5' }) {
   const paths = {
     grid: 'M4 4h6v6H4V4Zm10 0h6v6h-6V4ZM4 14h6v6H4v-6Zm10 0h6v6h-6v-6Z',
     users: 'M16 19v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 4 17.5V19M10 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm8 0a2.5 2.5 0 1 0 0-5M19 19v-1a3 3 0 0 0-2-2.8',

@@ -95,7 +95,7 @@ export default function Sidebar({ role, mobileOpen, onClose }) {
                           <Icon
                             name={item.icon}
                             className={`shrink-0 transition-colors ${
-                              isCswd ? 'h-3.5 w-3.5' : 'h-4.5 w-4.5'
+                              isCswd ? 'h-4 w-4' : 'h-5 w-5'
                             } ${isActive ? 'text-sky-300' : 'text-slate-400'}`}
                           />
                           <span className="truncate">{item.label}</span>
