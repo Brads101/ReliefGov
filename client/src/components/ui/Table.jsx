@@ -11,7 +11,7 @@ export function Table({ columns, rows, keyFn, emptyState, className = '', fixed 
                 key={col.key}
                 scope="col"
                 style={col.width ? { width: col.width } : undefined}
-                className={`px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-600 ${
+                className={`px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-600 whitespace-nowrap ${
                   col.align === 'right'
                     ? 'text-right'
                     : col.align === 'center'
