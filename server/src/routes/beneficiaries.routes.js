@@ -19,6 +19,7 @@ router.get('/', requireAuth, requireRole(...STAFF), async (req, res, next) => {
     const result = await dataSource.listBeneficiaries({
       search: String(req.query.search || ''),
       status: String(req.query.status || ''),
+      application_status: String(req.query.application_status || ''),
       limit,
       offset
     });

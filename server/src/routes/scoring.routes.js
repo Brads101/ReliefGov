@@ -59,6 +59,8 @@ router.get('/beneficiaries', async (req, res, next) => {
       state: req.query.state,
       sort: req.query.sort,
       order: req.query.order,
+      from: req.query.from,
+      to: req.query.to,
       limit: req.query.limit,
       offset: req.query.offset
     });

@@ -415,9 +415,14 @@ export default function ApplicationForm() {
       <PageHeader
         title={application ? 'Edit your application' : 'Beneficiary application form'}
         description={
-          application
-            ? `Reference ${application.beneficiary_number} · autosaves as a draft until you submit`
-            : undefined
+          application ? (
+            <span className="inline-flex items-center gap-1.5 mt-0.5">
+              <span className="inline-flex items-center gap-1.5 rounded-md border border-amber-300 bg-amber-100/90 px-2.5 py-0.5 text-[12.5px] font-bold text-amber-950 shadow-xs">
+                <span className="font-semibold text-amber-800">Reference:</span>
+                <span className="font-mono tracking-wide">{application.beneficiary_number}</span>
+              </span>
+            </span>
+          ) : undefined
         }
         breadcrumbs={[
           { label: 'Home', to: '/dashboard' },
@@ -553,13 +558,6 @@ export default function ApplicationForm() {
                   htmlFor="purok"
                   required
                   error={errors.purok}
-                  hint={
-                    form.purok
-                      ? isFloodPronePurok(form.purok === 'Other (specify)' ? form.purok_other : form.purok)
-                        ? 'High flood hazard area (Puroks 1–4: coastal / riverbank zone)'
-                        : 'Low flood hazard area (Puroks 5–8 / inland zone)'
-                      : 'Barangay Tambacan only'
-                  }
                 >
                   <Select
                     name="purok"
@@ -574,7 +572,7 @@ export default function ApplicationForm() {
                     <Input name="purok_other" value={form.purok_other} onChange={set('purok_other')} />
                   </Field>
                 )}
-                <Field label="Family size" htmlFor="household_size" required error={errors.household_size} hint="Number of members in the household (1–50)">
+                <Field label="Family size" htmlFor="household_size" required error={errors.household_size}>
                   <Input
                     name="household_size"
                     type="number"
@@ -918,15 +916,15 @@ export default function ApplicationForm() {
                   <Button onClick={() => setConfirmOpen(true)} disabled={saving || submitting || !canSubmit}>
                     Submit application for verification
                   </Button>
-                  <p className="text-[12px] text-slate-500">
-                    {canSubmit
-                      ? 'By submitting, you confirm that the information above is true and correct.'
-                      : !hasCertificate && needsDamagePhoto && !hasDamagePhoto
+                  {!canSubmit && (
+                    <p className="text-[12px] text-slate-500">
+                      {!hasCertificate && needsDamagePhoto && !hasDamagePhoto
                         ? 'Submitting unlocks once your Barangay Certificate of Residency and Damage Photo are attached.'
                         : !hasCertificate
                           ? 'Submitting unlocks once your Barangay Certificate of Residency is attached (Documents section).'
                           : 'Submitting unlocks once a Photo of the Damaged House is attached (Documents section).'}
-                  </p>
+                    </p>
+                  )}
                 </div>
               </div>
             )}
@@ -969,9 +967,11 @@ export default function ApplicationForm() {
           {application && (
             <Card title="Application record" subtitle="Current state">
               <dl className="space-y-2 text-[13px]">
-                <div className="flex justify-between gap-3">
+                <div className="flex justify-between items-center gap-3">
                   <dt className="text-slate-500">Reference</dt>
-                  <dd className="font-medium text-navy-900">{application.beneficiary_number}</dd>
+                  <dd className="font-mono font-bold text-amber-950 bg-amber-100 px-2 py-0.5 rounded border border-amber-300 text-xs">
+                    {application.beneficiary_number}
+                  </dd>
                 </div>
                 <div className="flex justify-between gap-3">
                   <dt className="text-slate-500">Status</dt>

@@ -76,6 +76,15 @@ async function fetchCsv(query) {
   return { csv: await response.text(), filename };
 }
 
+function getStatusTone(label) {
+  const l = String(label).toLowerCase();
+  if (l.includes('approved') || l.includes('verified') || l.includes('high') || l.includes('completed')) return 'emerald';
+  if (l.includes('pending') || l.includes('under') || l.includes('medium') || l.includes('in progress')) return 'amber';
+  if (l.includes('correction') || l.includes('draft')) return 'sky';
+  if (l.includes('rejected') || l.includes('duplicate') || l.includes('flagged') || l.includes('low')) return 'rose';
+  return 'slate';
+}
+
 /** Renders a snapshot value: nested tallies become labelled sub-lists. */
 function SnapshotValue({ value }) {
   if (value == null) return <span className="text-slate-400">—</span>;
@@ -83,30 +92,64 @@ function SnapshotValue({ value }) {
     if (value.length === 0) return <span className="text-slate-400">None</span>;
     if (typeof value[0] === 'object') {
       return (
-        <ul className="list-disc space-y-0.5 pl-4 text-[13px] text-navy-800">
+        <ul className="divide-y divide-slate-100 text-[12.5px]">
           {value.map((item, i) => (
-            <li key={i}>{[item.action, item.created_at ? dateTimeFmt(item.created_at) : null].filter(Boolean).join(' · ') || JSON.stringify(item)}</li>
+            <li key={i} className="flex items-center justify-between py-1.5 text-slate-800">
+              <span className="font-medium">{item.action || JSON.stringify(item)}</span>
+              {item.created_at && (
+                <span className="font-mono text-[11px] text-slate-400">{dateTimeFmt(item.created_at)}</span>
+              )}
+            </li>
           ))}
         </ul>
       );
     }
-    return <span className="text-[13px] text-navy-800">{value.join(', ')}</span>;
+    return (
+      <div className="flex flex-wrap gap-1.5">
+        {value.map((v, i) => (
+          <span key={i} className="rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-medium text-slate-700">
+            {v}
+          </span>
+        ))}
+      </div>
+    );
   }
   if (typeof value === 'object') {
     const entries = Object.entries(value);
     if (entries.length === 0) return <span className="text-slate-400">None</span>;
     return (
-      <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-[13px]">
-        {entries.map(([k, v]) => (
-          <div key={k} className="flex justify-between gap-2">
-            <dt className="text-slate-500">{humanize(k)}</dt>
-            <dd className="font-medium tabular-nums text-navy-900">{String(v)}</dd>
-          </div>
-        ))}
-      </dl>
+      <div className="grid grid-cols-2 gap-2 text-[12.5px]">
+        {entries.map(([k, v]) => {
+          const tone = getStatusTone(k);
+          const badgeClass =
+            tone === 'emerald'
+              ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+              : tone === 'amber'
+              ? 'bg-amber-50 text-amber-800 border-amber-200'
+              : tone === 'sky'
+              ? 'bg-sky-50 text-sky-800 border-sky-200'
+              : tone === 'rose'
+              ? 'bg-rose-50 text-rose-800 border-rose-200'
+              : 'bg-white text-slate-800 border-slate-200/90 shadow-2xs';
+
+          return (
+            <div
+              key={k}
+              className="flex items-center justify-between gap-2 rounded-lg border border-slate-200/70 bg-slate-50/50 px-2.5 py-1.5 transition-colors hover:bg-white"
+            >
+              <dt className="truncate font-medium text-slate-700">{humanize(k)}</dt>
+              <dd
+                className={`shrink-0 rounded-md border px-2 py-0.5 text-[11.5px] font-bold tabular-nums ${badgeClass}`}
+              >
+                {String(v)}
+              </dd>
+            </div>
+          );
+        })}
+      </div>
     );
   }
-  return <span className="text-[13px] tabular-nums text-navy-800">{String(value)}</span>;
+  return <span className="text-[13px] font-bold tabular-nums text-navy-950">{String(value)}</span>;
 }
 
 export default function Reports() {
@@ -341,11 +384,6 @@ export default function Reports() {
     <>
       <PageHeader
         title="Reports"
-        description={
-          isCswd
-            ? 'Central CSWD oversight reports and barangay-submitted snapshots from live Tambacan records.'
-            : 'Barangay-level reports prepared from live Tambacan records and submitted to the CSWD Office for oversight.'
-        }
         breadcrumbs={[{ label: 'Home', to: '/dashboard' }, { label: 'Reports' }]}
         actions={<Button onClick={openDialog}>Prepare report</Button>}
       />
@@ -365,7 +403,6 @@ export default function Reports() {
       {data && (
         <Card
           title="Prepared reports"
-          subtitle="Shared list — barangay prepares and submits; CSWD oversees. Figures are snapshotted at preparation time."
           actions={<span className="text-[13px] tabular-nums text-slate-500">{data.total} report{data.total === 1 ? '' : 's'}</span>}
         >
           <Table
@@ -388,7 +425,6 @@ export default function Reports() {
       <Card
         className="mt-5 print:hidden"
         title="Live preview & export"
-        subtitle="Preview row-level figures, then print (save as PDF via your browser) or export CSV. Exports use the same authorization and filters as this preview."
       >
         <div className="flex flex-wrap items-end gap-3">
           <div className="w-56">
@@ -613,7 +649,7 @@ export default function Reports() {
           footer={
             <>
               <Button
-                variant="secondary"
+                variant="primary"
                 disabled={exporting}
                 onClick={() => {
                   const p = new URLSearchParams();
@@ -623,6 +659,9 @@ export default function Reports() {
                   exportCsv(p.toString());
                 }}
               >
+                <svg viewBox="0 0 20 20" className="mr-1.5 h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M4 14v2a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-2M10 3v10m0 0l-3-3m3 3l3-3" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
                 Export CSV (live data)
               </Button>
               <Button variant="secondary" onClick={() => setViewing(null)}>
@@ -633,46 +672,107 @@ export default function Reports() {
         >
           <div className="space-y-4 text-sm">
             <div className="flex flex-wrap gap-2">
-              <Badge tone="info">{viewing.format}</Badge>
-              <Badge tone="neutral">Barangay Tambacan</Badge>
-              <Badge tone="neutral">To: {params?.submitted_to || 'CSWD Office, Iligan City'}</Badge>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-200 bg-sky-50 px-2.5 py-0.5 text-xs font-semibold text-sky-800">
+                <span className="h-1.5 w-1.5 rounded-full bg-sky-500" />
+                {viewing.format}
+              </span>
+              <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-xs font-medium text-slate-700">
+                Barangay Tambacan
+              </span>
+              <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-xs font-medium text-slate-700">
+                To: {params?.submitted_to || 'CSWD Office, Iligan City'}
+              </span>
             </div>
-            <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-[13px]">
+
+            <div className="grid grid-cols-2 gap-3 rounded-xl border border-slate-200/80 bg-gradient-to-br from-slate-50/90 to-sky-50/30 p-3.5 text-[13px]">
               <div>
-                <dt className="text-slate-500">Prepared by</dt>
-                <dd className="font-medium text-navy-900">
-                  {viewing.prepared_by?.full_name || '—'} ({ROLE_LABEL[viewing.prepared_by?.role] || ''})
+                <dt className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Prepared by</dt>
+                <dd className="mt-0.5 font-bold text-navy-900">
+                  {viewing.prepared_by?.full_name || '—'}
                 </dd>
+                <p className="text-[11.5px] text-slate-500">
+                  {ROLE_LABEL[viewing.prepared_by?.role] || ''}
+                </p>
               </div>
               <div>
-                <dt className="text-slate-500">Period</dt>
-                <dd className="font-medium text-navy-900">
+                <dt className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Reporting Period</dt>
+                <dd className="mt-0.5 font-bold text-navy-900">
                   {params?.date_from ? dateFmt(params.date_from) : 'All'} — {params?.date_to ? dateFmt(params.date_to) : 'today'}
                 </dd>
+                <p className="text-[11.5px] text-slate-500">
+                  Snapshot locked at preparation
+                </p>
               </div>
-            </dl>
+            </div>
+
             {params?.notes && (
-              <p className="rounded-md bg-surface-muted p-3 text-[13px] text-navy-800">Notes: {params.notes}</p>
+              <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-3 text-[12.5px] text-amber-900 shadow-2xs">
+                <span className="font-semibold text-amber-950">Notes:</span> {params.notes}
+              </div>
             )}
-            <section>
-              <h3 className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-navy-700">Figures at preparation</h3>
+
+            <section className="space-y-3">
+              <div className="flex items-center justify-between border-b border-slate-200/80 pb-2">
+                <div className="flex items-center gap-2">
+                  <span className="h-3 w-1 rounded-full bg-sky-500" aria-hidden="true" />
+                  <h3 className="text-[12px] font-bold uppercase tracking-wider text-slate-700">
+                    Figures at Preparation
+                  </h3>
+                </div>
+                <span className="rounded-full border border-sky-200/80 bg-sky-50 px-2 py-0.5 text-[11px] font-semibold text-sky-800">
+                  Locked Snapshot
+                </span>
+              </div>
+
               <div className="space-y-3">
                 {params?.snapshot ? (
-                  Object.entries(params.snapshot).map(([key, value]) => (
-                    <div key={key}>
-                      <p className="mb-1 text-[13px] font-medium text-navy-800">{humanize(key)}</p>
-                      <SnapshotValue value={value} />
-                    </div>
-                  ))
+                  Object.entries(params.snapshot).map(([key, value]) => {
+                    const isTotal = key.toLowerCase() === 'total' || typeof value !== 'object';
+                    if (isTotal) {
+                      return (
+                        <div
+                          key={key}
+                          className="flex items-center justify-between rounded-xl border border-sky-200/80 bg-gradient-to-r from-sky-50/80 via-white to-sky-50/40 p-3.5 shadow-2xs"
+                        >
+                          <div>
+                            <p className="text-[11px] font-bold uppercase tracking-wider text-sky-900">
+                              {humanize(key)} Records Snapshotted
+                            </p>
+                            <p className="text-[11.5px] text-slate-500">
+                              Direct counts computed at the moment of report generation
+                            </p>
+                          </div>
+                          <span className="text-2xl font-black tabular-nums tracking-tight text-navy-950">
+                            {String(value)}
+                          </span>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div
+                        key={key}
+                        className="rounded-xl border border-slate-200/80 bg-white p-3 shadow-2xs"
+                      >
+                        <div className="mb-2 flex items-center justify-between border-b border-slate-100 pb-1.5">
+                          <p className="text-[12px] font-bold tracking-tight text-navy-900">
+                            {humanize(key)}
+                          </p>
+                          {typeof value === 'object' && value && (
+                            <span className="text-[11px] font-medium text-slate-400">
+                              {Object.keys(value).length} items
+                            </span>
+                          )}
+                        </div>
+                        <SnapshotValue value={value} />
+                      </div>
+                    );
+                  })
                 ) : (
-                  <p className="text-slate-400">No snapshot stored.</p>
+                  <p className="py-4 text-center text-sm text-slate-400">No snapshot stored.</p>
                 )}
               </div>
             </section>
-            <p className="text-[12.5px] leading-relaxed text-slate-500">
-              CSV export regenerates live rows for this report&rsquo;s type and period under your own
-              permissions — the snapshot above stays as the record at preparation time.
-            </p>
           </div>
         </Dialog>
       )}

@@ -12,6 +12,7 @@ import DataNotice from '../components/DataNotice.jsx';
 import PriorityCategoryBars from '../components/PriorityCategoryBars.jsx';
 import { LoadingState, ErrorState, EmptyState, InlineAlert } from '../components/ui/States.jsx';
 import {
+  STATUS_META,
   VULNERABILITY_CLASS_META,
   VULNERABILITY_CLASSES,
   vulnerabilityClassMeta,
@@ -300,6 +301,10 @@ export default function Scoring() {
   const [state, setState] = useState('');
   const [sort, setSort] = useState('score');
   const [order, setOrder] = useState('desc');
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+  const [activePreset, setActivePreset] = useState('all');
+  const [groupByDate, setGroupByDate] = useState(true);
   const [data, setData] = useState(null);
   const [model, setModel] = useState(null);
   const [summary, setSummary] = useState(null);
@@ -307,6 +312,37 @@ export default function Scoring() {
   const [error, setError] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
   const [refreshTick, setRefreshTick] = useState(0);
+
+  const applyPreset = (preset) => {
+    setActivePreset(preset);
+    const now = new Date();
+    const toLocalIso = (d) => {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+
+    if (preset === 'today') {
+      const todayStr = toLocalIso(now);
+      setFrom(todayStr);
+      setTo(todayStr);
+    } else if (preset === 'week') {
+      const dayOfWeek = now.getDay();
+      const diffToMonday = (dayOfWeek + 6) % 7;
+      const monday = new Date(now);
+      monday.setDate(now.getDate() - diffToMonday);
+      setFrom(toLocalIso(monday));
+      setTo(toLocalIso(now));
+    } else if (preset === 'month') {
+      const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+      setFrom(toLocalIso(firstDay));
+      setTo(toLocalIso(now));
+    } else {
+      setFrom('');
+      setTo('');
+    }
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -316,6 +352,8 @@ export default function Scoring() {
       if (search.trim()) params.set('search', search.trim());
       if (klass) params.set('class', klass);
       if (state) params.set('state', state);
+      if (from) params.set('from', from);
+      if (to) params.set('to', to);
       params.set('sort', sort);
       params.set('order', order);
       params.set('limit', '100');
@@ -336,7 +374,7 @@ export default function Scoring() {
     } finally {
       setLoading(false);
     }
-  }, [search, klass, state, sort, order, model]);
+  }, [search, klass, state, sort, order, from, to, model]);
 
   useEffect(() => {
     const timer = setTimeout(load, 250);
@@ -349,16 +387,79 @@ export default function Scoring() {
     setState('');
     setSort('score');
     setOrder('desc');
+    setFrom('');
+    setTo('');
+    setActivePreset('all');
   };
 
-  const hasFilters = Boolean(search.trim() || klass || state);
+  const hasFilters = Boolean(search.trim() || klass || state || from || to);
+
+  const dateGroups = useMemo(() => {
+    if (!data?.rows?.length) return [];
+    const groups = [];
+    const map = new Map();
+
+    const now = new Date();
+    const isSameDay = (d1, d2) =>
+      d1.getFullYear() === d2.getFullYear() &&
+      d1.getMonth() === d2.getMonth() &&
+      d1.getDate() === d2.getDate();
+
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+
+    for (const row of data.rows) {
+      let key = 'no-date';
+      let label = 'No submission date';
+      let isToday = false;
+      let isYesterday = false;
+
+      const dateVal = row.submitted_at || row.scored_at;
+      if (dateVal) {
+        const d = new Date(dateVal);
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        key = `${year}-${month}-${day}`;
+
+        if (isSameDay(d, now)) {
+          isToday = true;
+          label = `Today — ${d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`;
+        } else if (isSameDay(d, yesterday)) {
+          isYesterday = true;
+          label = `Yesterday — ${d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`;
+        } else {
+          label = d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+        }
+      }
+
+      if (!map.has(key)) {
+        const g = { key, label, isToday, isYesterday, rows: [] };
+        map.set(key, g);
+        groups.push(g);
+      }
+      map.get(key).rows.push(row);
+    }
+
+    groups.sort((a, b) => {
+      if (a.key === 'no-date') return 1;
+      if (b.key === 'no-date') return -1;
+      return b.key.localeCompare(a.key);
+    });
+
+    return groups.map((g) => ({
+      ...g,
+      highCount: g.rows.filter((r) => r.vulnerability_class === 'High').length,
+      modCount: g.rows.filter((r) => r.vulnerability_class === 'Moderate').length,
+      lowCount: g.rows.filter((r) => r.vulnerability_class === 'Low').length
+    }));
+  }, [data?.rows]);
 
   if (selectedId) {
     return (
       <div className="space-y-4">
         <PageHeader
           title="Score review"
-          subtitle="Random Forest result, evidence, and full scoring history"
           actions={
             <Button variant="secondary" onClick={() => setSelectedId(null)}>
               Back to scoring list
@@ -389,16 +490,9 @@ export default function Scoring() {
       key: 'state',
       header: 'Score state',
       render: (r) => (
-        <div className="space-y-1">
-          <Badge tone={SCORE_STATE_META[r.state]?.tone || 'neutral'}>
-            {SCORE_STATE_META[r.state]?.label || r.state}
-          </Badge>
-          {r.dataset_type && (
-            <Badge tone={DATASET_BADGE[r.dataset_type]?.tone || 'neutral'}>
-              {DATASET_BADGE[r.dataset_type]?.label || r.dataset_type}
-            </Badge>
-          )}
-        </div>
+        <Badge tone={SCORE_STATE_META[r.state]?.tone || 'neutral'}>
+          {SCORE_STATE_META[r.state]?.label || r.state}
+        </Badge>
       )
     },
     {
@@ -454,14 +548,12 @@ export default function Scoring() {
     <div className="space-y-4">
       <PageHeader
         title="Vulnerability Scoring"
-        subtitle="Random Forest priority classification for Barangay Tambacan — decision support for staff, never an automated decision"
       />
       <DataNotice />
 
       {summary && (
         <Card
           title="Records by priority category"
-          subtitle="Current scores across Barangay Tambacan — the whole caseload, not affected by the filters below"
         >
           {summary.total === 0 ? (
             <EmptyState
@@ -488,7 +580,6 @@ export default function Scoring() {
 
       <Card
         title="Scoring list"
-        subtitle="Validated records (Under Verification / Approved) with their current score state"
       >
         <div className="mb-4 flex flex-wrap items-end gap-3">
           <div className="min-w-[200px] flex-1">
@@ -524,37 +615,50 @@ export default function Scoring() {
               />
             </Field>
           </div>
-          <div className="w-36">
-            <Field label="Sort by">
-              <Select
-                value={sort}
-                onChange={(e) => setSort(e.target.value)}
-                options={[
-                  { value: 'score', label: 'Priority score' },
-                  { value: 'class', label: 'Priority category' },
-                  { value: 'name', label: 'Name' },
-                  { value: 'date', label: 'Scored date' }
-                ]}
-              />
-            </Field>
-          </div>
-          <div className="w-28">
-            <Field label="Order">
-              <Select
-                value={order}
-                onChange={(e) => setOrder(e.target.value)}
-                options={[
-                  { value: 'desc', label: 'Highest first' },
-                  { value: 'asc', label: 'Lowest first' }
-                ]}
-              />
-            </Field>
-          </div>
           {hasFilters && (
             <Button variant="ghost" size="sm" onClick={clearFilters}>
               Clear
             </Button>
           )}
+        </div>
+
+        {/* Quick date batch selection & grouping */}
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2.5 rounded-lg border border-slate-200/90 bg-slate-50/80 px-3.5 py-2">
+          <div className="flex flex-wrap items-center gap-1.5 text-xs">
+            <span className="font-semibold text-slate-600 mr-1">Quick date batch:</span>
+            {[
+              { id: 'all', label: 'All' },
+              { id: 'today', label: 'Today' },
+              { id: 'week', label: 'This Week' },
+              { id: 'month', label: 'This Month' }
+            ].map((p) => {
+              const active = activePreset === p.id;
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => applyPreset(p.id)}
+                  className={`rounded-full px-3 py-1 font-semibold transition-all ${
+                    active
+                      ? 'bg-gov-700 text-white shadow-xs'
+                      : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
+                  }`}
+                >
+                  {p.label}
+                </button>
+              );
+            })}
+          </div>
+
+          <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold text-slate-700 select-none">
+            <input
+              type="checkbox"
+              checked={groupByDate}
+              onChange={(e) => setGroupByDate(e.target.checked)}
+              className="h-3.5 w-3.5 rounded border-slate-300 text-gov-700 focus:ring-gov-600"
+            />
+            Group priority by intake date
+          </label>
         </div>
 
         {data?.counts && (
@@ -587,11 +691,8 @@ export default function Scoring() {
         )}
 
         {data && !loading && (
-          <Table
-            columns={columns}
-            rows={data.rows}
-            keyFn={(r) => r.id}
-            emptyState={
+          <>
+            {data.rows.length === 0 ? (
               <EmptyState
                 title={hasFilters ? 'No records match these filters' : 'No records to score'}
                 description={
@@ -608,8 +709,56 @@ export default function Scoring() {
                   ) : undefined
                 }
               />
-            }
-          />
+            ) : groupByDate ? (
+              <div className="space-y-4">
+                {dateGroups.map((group) => (
+                  <div key={group.key} className="overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-xs">
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/80 bg-slate-50/90 px-4 py-2.5">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="flex h-5 w-5 items-center justify-center rounded bg-gov-100 text-[11px] text-gov-800">
+                          📅
+                        </span>
+                        <span className="text-[13px] font-bold text-slate-900">{group.label}</span>
+                        {group.isToday && (
+                          <Badge tone="success" className="px-2 py-0 text-[10.5px]">Today's Batch</Badge>
+                        )}
+                        {group.isYesterday && (
+                          <Badge tone="info" className="px-2 py-0 text-[10.5px]">Yesterday</Badge>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 text-xs">
+                        <span className="text-slate-500 font-medium">
+                          {group.rows.length} record{group.rows.length === 1 ? '' : 's'}:
+                        </span>
+                        {group.highCount > 0 && (
+                          <span className="rounded-full bg-rose-50 border border-rose-200 px-2 py-0.5 font-bold text-rose-800 text-[11px]">
+                            {group.highCount} High Priority
+                          </span>
+                        )}
+                        {group.modCount > 0 && (
+                          <span className="rounded-full bg-amber-50 border border-amber-200 px-2 py-0.5 font-bold text-amber-800 text-[11px]">
+                            {group.modCount} Moderate
+                          </span>
+                        )}
+                        {group.lowCount > 0 && (
+                          <span className="rounded-full bg-slate-100 border border-slate-200 px-2 py-0.5 font-bold text-slate-700 text-[11px]">
+                            {group.lowCount} Low
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <Table columns={columns} rows={group.rows} keyFn={(r) => r.id} />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <Table
+                columns={columns}
+                rows={data.rows}
+                keyFn={(r) => r.id}
+              />
+            )}
+          </>
         )}
       </Card>
     </div>
@@ -714,7 +863,20 @@ function ScoringDetail({ id, onChanged }) {
 
   return (
     <div className="space-y-4">
-      <Card title="Record" subtitle={`${record.beneficiary_number} · ${record.application_status}`}>
+      <Card
+        title="Record"
+        subtitle={
+          <span className="mt-1 inline-flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-amber-100/90 px-2.5 py-0.5 text-[12px] font-bold text-amber-950 shadow-xs">
+              Reference: <span className="font-mono">{record.beneficiary_number}</span>
+            </span>
+            <span className="text-slate-400 font-bold">·</span>
+            <Badge tone={STATUS_META[record.application_status]?.tone || 'neutral'}>
+              {STATUS_META[record.application_status]?.label || record.application_status}
+            </Badge>
+          </span>
+        }
+      >
         <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-4">
           <div>
             <dt className="text-[12px] uppercase tracking-wide text-slate-500">Beneficiary</dt>
@@ -744,7 +906,7 @@ function ScoringDetail({ id, onChanged }) {
         subtitle={
           current
             ? `${current.source === 'manual' ? 'Authorized manual correction' : 'Random Forest classification'} · scored ${new Date(current.scored_at).toLocaleString()}`
-            : 'No score has been computed for this record yet'
+            : undefined
         }
         actions={
           <div className="flex flex-wrap gap-2">
@@ -769,21 +931,13 @@ function ScoringDetail({ id, onChanged }) {
         <ErrorText error={actionError} />
         {notice && <div className="mb-3"><InlineAlert level="success">{notice}</InlineAlert></div>}
 
-        {!scorable && (
-          <div className="mb-3">
-            <InlineAlert level="info">{capabilities?.note}</InlineAlert>
-          </div>
-        )}
-
         {!current && (
           <EmptyState
             title="Not scored yet"
             description={
               capabilities?.canScore
                 ? 'This record is validated and ready. Compute a score to see the model’s priority category, evidence and ranking.'
-                : scorable
-                  ? 'No score has been computed for this record yet.'
-                  : `Scoring applies to records with status: ${(capabilities?.scorableStatuses || []).join(' or ')}.`
+                : undefined
             }
             minHeight="min-h-[140px]"
           />
@@ -986,7 +1140,6 @@ function ScoringDetail({ id, onChanged }) {
 
       <Card
         title="Scoring history"
-        subtitle="Every run is kept — nothing is deleted; superseded rows remain for audit"
       >
         {history?.length ? (
           <ol className="space-y-3">
@@ -1010,18 +1163,17 @@ function ScoringDetail({ id, onChanged }) {
                     {new Date(h.scored_at).toLocaleString()}
                   </span>
                 </div>
-                <p className="mt-1 text-[12.5px] text-slate-600">
-                  {h.source === 'manual' ? 'Authorized reviewer correction' : `Model ${h.model_version}`} · evaluated
-                  against: {h.evaluated_on}
-                  {h.correction_reason ? ` · reason: ${h.correction_reason}` : ''}
-                </p>
+                {h.correction_reason && (
+                  <p className="mt-1 text-[12.5px] text-slate-600">
+                    Reason: {h.correction_reason}
+                  </p>
+                )}
               </li>
             ))}
           </ol>
         ) : (
           <EmptyState
             title="No scoring history"
-            description="Once a score is computed, every run will be listed here with its model version, date and result."
             minHeight="min-h-[120px]"
           />
         )}

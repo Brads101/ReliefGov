@@ -147,7 +147,7 @@ export const DOCUMENT_PURPOSES = [
 export const DOCUMENT_PURPOSE_LABELS = {
   'Barangay certificate': 'Barangay Certificate of Residency',
   'Damage photos': 'Photo of the damaged house',
-  'Valid ID': 'Valid ID',
+  'Valid ID': 'National ID',
   'Proof of residence': 'Proof of residence',
   'Medical record': 'Medical record',
   'Other': 'Other'
@@ -184,7 +184,7 @@ export const DOCUMENT_CHECKLIST = [
   },
   {
     purpose: 'Valid ID',
-    title: 'Valid ID',
+    title: 'National ID',
     required: false,
     why: 'Recommended — helps the office confirm your identity during validation. Identity documents are deliberately never used in vulnerability scoring.'
   }
@@ -367,7 +367,7 @@ export function normalizeClassCounts(counts = {}) {
 
 /** Row states in the scoring list (server: scoringService.stateOf). */
 export const SCORE_STATE_META = {
-  missing: { label: 'Not scored', tone: 'neutral', hint: 'No score has been computed for this record yet.' },
+  missing: { label: 'Not scored', tone: 'neutral', hint: '' },
   scored: { label: 'Scored', tone: 'success', hint: 'Current score matches the assessment data on file.' },
   stale: { label: 'Stale', tone: 'warning', hint: 'Assessment data or the model version changed after scoring — re-run recommended.' },
   flagged: { label: 'Flagged', tone: 'danger', hint: 'A reviewer marked this score as questionable.' }
@@ -401,11 +401,11 @@ export const DATASET_BADGE = {
 };
 
 export const FORM_STEPS = [
-  { key: 'personal', label: 'Personal information', description: 'Your identity and contact details' },
-  { key: 'household', label: 'Household', description: 'Family size, purok, and house status' },
-  { key: 'incident', label: 'Disaster incident', description: 'What happened and the damage it caused' },
-  { key: 'documents', label: 'Supporting documents', description: 'Certificate, damage photo, and identity documents' },
-  { key: 'review', label: 'Review & submit', description: 'Check everything, then submit for verification' }
+  { key: 'personal', label: 'Personal information', description: '' },
+  { key: 'household', label: 'Household', description: '' },
+  { key: 'incident', label: 'Disaster incident', description: '' },
+  { key: 'documents', label: 'Supporting documents', description: '' },
+  { key: 'review', label: 'Review & submit', description: '' }
 ];
 
 /** Client-side field rules — mirror of server/src/lib/validate.js. */

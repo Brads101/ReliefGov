@@ -73,7 +73,14 @@ function MyApplicationPanel() {
   return (
     <Card
       title="Your assistance application"
-      subtitle={`Reference ${application.beneficiary_number}`}
+      subtitle={
+        <span className="inline-flex items-center gap-1.5 mt-0.5">
+          <span className="inline-flex items-center gap-1.5 rounded-md border border-amber-300 bg-amber-100/90 px-2.5 py-0.5 text-[12.5px] font-bold text-amber-950 shadow-xs">
+            <span className="font-semibold text-amber-800">Reference:</span>
+            <span className="font-mono tracking-wide">{application.beneficiary_number}</span>
+          </span>
+        </span>
+      }
       actions={
         <Link to="/application">
           <Button variant="secondary">Open application</Button>
@@ -154,7 +161,7 @@ function StaffOperationsPanel({ refreshToken }) {
 
   return (
     <div className="space-y-6">
-      <SectionDivider label="Validation & Review Queue" badge="Real-time Workflow" />
+      <SectionDivider label="Validation & Review Queue" />
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Pending submissions"
@@ -186,11 +193,10 @@ function StaffOperationsPanel({ refreshToken }) {
         />
       </div>
 
-      <SectionDivider label="Barangay Field Operations & Breakdown" badge="Tambacan Scope" />
+      <SectionDivider label="Barangay Field Operations & Breakdown" />
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card
           title="Recent submissions"
-          subtitle="Latest records in the queue"
           actions={
             notifications && notifications.unread > 0 ? (
               <Link to="/notifications">
@@ -255,7 +261,7 @@ function StaffOperationsPanel({ refreshToken }) {
           )}
         </Card>
 
-        <Card title="Purok breakdown" subtitle="Submitted records by purok">
+        <Card title="Purok breakdown">
           {purokBreakdown.length === 0 ? (
             <EmptyState title="No submitted records" minHeight="min-h-[140px]" />
           ) : (
@@ -287,7 +293,7 @@ function StaffOperationsPanel({ refreshToken }) {
           )}
         </Card>
 
-        <Card title="Local monitoring" subtitle="Aid distribution and prepared reports">
+        <Card title="Local monitoring">
           <div className="space-y-4">
             <div className="rounded-lg border border-teal-200/70 bg-gradient-to-br from-teal-50/70 via-white to-white p-3.5">
               <div className="flex items-center justify-between">
@@ -349,7 +355,6 @@ function StaffOperationsPanel({ refreshToken }) {
         <Card
           className="lg:col-span-2"
           title="Recent system activity"
-          subtitle="Latest audited actions across the module, newest first"
         >
           {!recentActivity || recentActivity.length === 0 ? (
             <EmptyState
@@ -383,7 +388,7 @@ function StaffOperationsPanel({ refreshToken }) {
           )}
         </Card>
 
-        <Card title="Your notifications" subtitle="Unread messages for your account">
+        <Card title="Your notifications">
           <div className="flex h-full flex-col justify-between space-y-4">
             <div className="rounded-xl border border-alert-200/70 bg-gradient-to-br from-alert-50/70 via-white to-white p-4">
               <div className="flex items-center gap-3">
@@ -598,7 +603,7 @@ export default function Dashboard() {
 
       {!loading && !error && data && !data.restricted && (
         <div className="space-y-6">
-          <SectionDivider label="Beneficiary Registry Overview" badge="Live Database Counters" />
+          <SectionDivider label="Beneficiary Registry Overview" />
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <StatCard
               label="Beneficiary profiles"
@@ -632,17 +637,16 @@ export default function Dashboard() {
 
           <StaffOperationsPanel refreshToken={refreshTick} />
 
-          <SectionDivider label="Decision Support & System Telemetry" badge="AI + Infrastructure" />
+          <SectionDivider label="Decision Support & System Telemetry" />
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             <Card
               className="lg:col-span-2"
               title="Vulnerability scoring"
-              subtitle="Random Forest classification status (Barangay Tambacan)"
             >
               <ScoringSummaryPanel refreshToken={refreshTick} />
             </Card>
 
-            <Card title="System status" subtitle="Live LGU infrastructure & scope">
+            <Card title="System status">
               <div className="mb-3 flex items-center gap-2 rounded-lg border border-teal-200/80 bg-teal-50/70 px-3 py-2 text-[12.5px] font-semibold text-teal-800">
                 <span className="h-2 w-2 rounded-full bg-teal-500" aria-hidden="true" />
                 All services operational

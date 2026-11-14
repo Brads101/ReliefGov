@@ -229,7 +229,6 @@ export default function Users() {
     <>
       <PageHeader
         title="User Management"
-        description="Central account administration for the CSWD Office, Iligan City. Staff accounts require approval before they can sign in."
         breadcrumbs={[
           { label: 'Home', to: '/dashboard' },
           { label: 'Oversight' },

@@ -447,38 +447,29 @@ export default function Analytics() {
           id="operations"
           accent="blue"
           title="Live operations"
-          description="Computed from Barangay Tambacan records at request time — refreshed by the button above, never stored."
           aside={livePill}
         >
           <div className="grid gap-4 lg:grid-cols-2">
             <Figure
               title="Application queue by status"
-              note={`All ${queue.total ?? 0} submitted records, grouped by their current application status.`}
             >
               <QueueStatusView queue={queue} />
             </Figure>
 
             <Figure
               title="Geographic density by purok"
-              note={
-                puroks.length > 7
-                  ? `Top 7 of ${puroks.length} puroks by record count across Barangay Tambacan.`
-                  : `All ${queue.total ?? 0} submitted records, grouped by purok.`
-              }
             >
               <PurokDistributionView puroks={puroks} total={queue.total || 0} />
             </Figure>
 
             <Figure
               title="Vulnerability scoring readiness"
-              note={`Assessment coverage across all ${scoreTotal} submitted records. Shows active scores vs pending model review.`}
             >
               <ScoringCoverageView scoring={scoring} total={scoreTotal} />
             </Figure>
 
             <Figure
               title="Priority category distribution"
-              note={`Live distribution across Low, Medium, and High priority categories (${classTotal} scored records).`}
             >
               {classTotal > 0 ? (
                 <PriorityCategoryView classCounts={classCounts} total={classTotal} />

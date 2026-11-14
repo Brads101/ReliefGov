@@ -114,7 +114,15 @@ export default function Application() {
     <>
       <PageHeader
         title="My Application"
-        description={`Reference ${application.beneficiary_number} · Barangay Tambacan, Iligan City`}
+        description={
+          <span className="inline-flex flex-wrap items-center gap-2 mt-0.5">
+            <span className="inline-flex items-center gap-1.5 rounded-md border border-amber-300 bg-amber-100/90 px-2.5 py-0.5 text-[12.5px] font-bold text-amber-950 shadow-xs">
+              <span className="font-semibold text-amber-800">Reference:</span>
+              <span className="font-mono tracking-wide">{application.beneficiary_number}</span>
+            </span>
+            <span className="text-slate-500 text-[13px]">· Barangay Tambacan, Iligan City</span>
+          </span>
+        }
         breadcrumbs={[{ label: 'Home', to: '/dashboard' }, { label: 'My Application' }]}
         actions={
           <div className="flex flex-wrap gap-2">
@@ -151,7 +159,7 @@ export default function Application() {
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <div className="space-y-5 lg:col-span-2">
           {/* Current status */}
-          <Card title="Current status" subtitle="Updated automatically by the verification workflow">
+          <Card title="Current status">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <Badge tone={meta?.tone || 'neutral'} className="px-3 py-1 text-[13px]">
                 {meta?.label || application.application_status}
@@ -190,7 +198,7 @@ export default function Application() {
           </Card>
 
           {/* Status timeline */}
-          <Card title="Status timeline" subtitle="Every change, who made it, and why">
+          <Card title="Status timeline">
             {bundle.history.length === 0 ? (
               <EmptyState
                 title="No status changes yet"
@@ -231,7 +239,7 @@ export default function Application() {
           </Card>
 
           {/* Submitted information (read-only) */}
-          <Card title="Submitted information" subtitle="Read-only copy of your application">
+          <Card title="Submitted information">
             <dl className="grid grid-cols-1 gap-x-6 gap-y-3 text-[13px] sm:grid-cols-2">
               <div><dt className="text-slate-500">Full name</dt>
                 <dd className="font-medium text-navy-900">
@@ -276,7 +284,7 @@ export default function Application() {
 
         <div className="space-y-5">
           {/* Vulnerability result */}
-          <Card title="Vulnerability assessment" subtitle="Shown only on your own record">
+          <Card title="Vulnerability assessment">
             {application.vulnerability_class ? (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
@@ -303,7 +311,6 @@ export default function Application() {
             ) : (
               <EmptyState
                 title="Not yet assessed"
-                description="Your vulnerability assessment will appear here after the office validates your profile and the scoring model runs."
                 minHeight="min-h-[130px]"
               />
             )}
@@ -350,9 +357,6 @@ export default function Application() {
                 ))}
               </ul>
             )}
-            <p className="pt-3 text-[12px] text-slate-400">
-              Files are stored privately and open only for your account or authorized staff.
-            </p>
           </Card>
         </div>
       </div>

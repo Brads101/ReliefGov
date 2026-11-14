@@ -15,9 +15,9 @@ export default function Layout() {
   }, [location.pathname]);
 
   return (
-    <div className="flex min-h-screen bg-slate-50 text-slate-900">
+    <div className="min-h-screen bg-slate-50 text-slate-900">
       <Sidebar role={user?.role} mobileOpen={mobileOpen} onClose={() => setMobileOpen(false)} />
-      <div className="relative flex min-w-0 flex-1 flex-col">
+      <div className="relative flex min-w-0 flex-1 flex-col lg:pl-64 min-h-screen">
         {/* Civic landscape background — prominent behind page text & cards with blue/sky wash */}
         <div className="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden="true">
           <img

@@ -97,7 +97,10 @@ export async function uploadDocument(user, { file, beneficiary_id, purpose }) {
   // Purpose is checked BEFORE anything is written: an unknown purpose would
   // otherwise violate the documents_purpose_check constraint and surface as
   // an unhelpful 500 after the file had already been stored.
-  const normalizedPurpose = String(purpose ?? 'Other').trim() || 'Other';
+  let normalizedPurpose = String(purpose ?? 'Other').trim() || 'Other';
+  if (/^national\s*id$/i.test(normalizedPurpose)) {
+    normalizedPurpose = 'Valid ID';
+  }
   if (!DOCUMENT_PURPOSES.includes(normalizedPurpose)) {
     throw badRequest('Unknown document purpose.', {
       purpose: `Must be one of: ${DOCUMENT_PURPOSES.join(', ')}.`

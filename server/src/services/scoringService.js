@@ -221,6 +221,8 @@ export async function listScores(user, filters = {}) {
   const state = String(filters.state || '').trim();
   const sort = String(filters.sort || 'score').trim();
   const order = String(filters.order || 'desc').trim();
+  const from = String(filters.from || '').trim();
+  const to = String(filters.to || '').trim();
   const limit = Math.min(Math.max(Number(filters.limit) || 25, 1), 100);
   const offset = Math.max(Number(filters.offset) || 0, 0);
 
@@ -234,6 +236,15 @@ export async function listScores(user, filters = {}) {
       state: `Must be one of: ${STATES.join(', ')}.`
     });
   }
+  if (from && Number.isNaN(Date.parse(from))) {
+    throw badRequest('Invalid submission date filter.', { from: 'Use a valid date (YYYY-MM-DD).' });
+  }
+  if (to && Number.isNaN(Date.parse(to))) {
+    throw badRequest('Invalid submission date filter.', { to: 'Use a valid date (YYYY-MM-DD).' });
+  }
+  if (from && to && Date.parse(from) > Date.parse(to)) {
+    throw badRequest('The submission date range is inverted.', { from: 'Start date must be on or before the end date.' });
+  }
   if (!SORT_KEYS.includes(sort)) {
     throw badRequest('Unknown sort key.', { sort: `Must be one of: ${SORT_KEYS.join(', ')}.` });
   }
@@ -246,6 +257,9 @@ export async function listScores(user, filters = {}) {
     .select(RECORD_COLUMNS, { count: 'exact' })
     .eq('barangay', 'Tambacan')
     .neq('application_status', 'Draft');
+
+  if (from) query = query.gte('submitted_at', new Date(`${from}T00:00:00`).toISOString());
+  if (to) query = query.lte('submitted_at', new Date(`${to}T23:59:59.999`).toISOString());
 
   if (search) {
     query = query.or(
@@ -278,6 +292,7 @@ export async function listScores(user, filters = {}) {
       source: score ? score.source : null,
       dataset_type: score ? score.dataset_type : null,
       scored_at: score ? score.created_at : null,
+      submitted_at: record.submitted_at,
       flagged: Boolean(score?.flagged_at),
       state: stateOf(record, score),
       indicators: score ? score.indicator_snapshot : indicatorSnapshot(record),
@@ -406,9 +421,7 @@ function capabilitiesFor(user, record, current) {
     canCorrect: Boolean(current) && cswd,
     isCswd: cswd,
     scorableStatuses: SCORABLE_STATUSES,
-    note: scorable
-      ? null
-      : `Scoring applies to records with status: ${SCORABLE_STATUSES.join(' or ')}.`
+    note: null
   };
 }
 

@@ -548,7 +548,7 @@ function capabilitiesFor(user, application, reviews = []) {
 
   return {
     canStartVerification: status === 'Pending' && isBarangay,
-    canReturnForCorrection: status === 'Under Verification',
+    canReturnForCorrection: status === 'Pending' && isBarangay,
     canApprove: status === 'Under Verification' && isCswd && verifiedByBarangay,
     canReject: status === 'Under Verification' && isCswd && verifiedByBarangay,
     verifiedByBarangay,

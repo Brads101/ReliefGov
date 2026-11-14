@@ -72,12 +72,13 @@ const inTambacan = (record) =>
 
 /* ----------------------------- queries ----------------------------- */
 
-export async function listBeneficiaries({ search = '', status = '', limit = 25, offset = 0 } = {}) {
+export async function listBeneficiaries({ search = '', status = '', application_status = '', limit = 25, offset = 0 } = {}) {
   assertAvailable();
 
   if (mode() === 'synthetic') {
     let rows = syntheticStore().filter(inTambacan);
     if (status) rows = rows.filter((r) => r.validation_status === status);
+    if (application_status) rows = rows.filter((r) => r.application_status === application_status);
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       rows = rows.filter((r) =>
@@ -97,6 +98,7 @@ export async function listBeneficiaries({ search = '', status = '', limit = 25, 
   // Hard cap: only Barangay Tambacan records are ever served.
   query = query.eq('barangay', 'Tambacan');
   if (status) query = query.eq('validation_status', status);
+  if (application_status) query = query.eq('application_status', application_status);
   if (search.trim()) {
     const q = search.trim().replace(/[%_]/g, '');
     // Search real columns only — there is no full_name column on beneficiaries.

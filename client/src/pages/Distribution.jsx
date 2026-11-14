@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '../lib/api.js';
 import PageHeader, { StatCard } from '../components/ui/PageHeader.jsx';
 import Card from '../components/ui/Card.jsx';
@@ -199,7 +199,6 @@ export default function Distribution() {
     <>
       <PageHeader
         title="Distribution Monitoring"
-        description="Record and monitor relief distribution for eligible, approved records in Barangay Tambacan. A monitoring ledger only — no cash or payment processing."
         breadcrumbs={[
           { label: 'Home', to: '/dashboard' },
           { label: 'Assistance Operations' },
@@ -244,7 +243,6 @@ export default function Distribution() {
 
       <Card
         title="Distribution records"
-        subtitle="Barangay Tambacan · newest first"
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <div className="w-44">
@@ -394,8 +392,8 @@ export default function Distribution() {
 
 function RecordDistributionDialog({ onClose, onRecorded }) {
   const [search, setSearch] = useState('');
-  const [candidates, setCandidates] = useState(null);
-  const [picking, setPicking] = useState(true);
+  const [approvedList, setApprovedList] = useState([]);
+  const [loadingEligible, setLoadingEligible] = useState(true);
   const [selected, setSelected] = useState(null);
   const [form, setForm] = useState({
     assistance_type: ASSISTANCE_TYPES.length === 1 ? ASSISTANCE_TYPES[0] : '',
@@ -405,28 +403,41 @@ function RecordDistributionDialog({ onClose, onRecorded }) {
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
 
-  // Search the shared registry (server-scoped to Tambacan) and keep only
-  // APPROVED rows — the server re-checks eligibility on create regardless.
   useEffect(() => {
-    const q = search.trim();
-    if (!q) {
-      setCandidates(null);
-      return undefined;
-    }
-    const timer = setTimeout(async () => {
+    let active = true;
+    (async () => {
+      setLoadingEligible(true);
       try {
-        const res = await api(`/beneficiaries?search=${encodeURIComponent(q)}&limit=8`);
-        setCandidates((res.rows || []).filter((r) => r.application_status === 'Approved'));
+        const res = await api('/beneficiaries?application_status=Approved&limit=100');
+        if (active) {
+          const list = (res.rows || []).filter((r) => r.application_status === 'Approved');
+          setApprovedList(list);
+        }
       } catch {
-        setCandidates([]);
+        if (active) setApprovedList([]);
+      } finally {
+        if (active) setLoadingEligible(false);
       }
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [search]);
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const filteredCandidates = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return approvedList;
+    return approvedList.filter((r) => {
+      const name = `${r.first_name || ''} ${r.middle_name || ''} ${r.last_name || ''}`.toLowerCase();
+      const num = (r.beneficiary_number || '').toLowerCase();
+      const purok = (r.purok || '').toLowerCase();
+      return name.includes(q) || num.includes(q) || purok.includes(q);
+    });
+  }, [approvedList, search]);
 
   const submit = async () => {
     if (!selected) {
-      setError({ message: 'Choose an approved beneficiary first.' });
+      setError({ message: 'Choose an approved beneficiary from the list first.' });
       return;
     }
     if (!form.assistance_type) {
@@ -457,7 +468,6 @@ function RecordDistributionDialog({ onClose, onRecorded }) {
     <Dialog
       open
       title="Record a distribution"
-      description="Approved records only · one open entry per assistance type."
       onClose={onClose}
       footer={
         <>
@@ -477,82 +487,119 @@ function RecordDistributionDialog({ onClose, onRecorded }) {
           </InlineAlert>
         )}
 
-        {picking && !selected && (
-          <Field
-            label="Beneficiary"
-            htmlFor="dist-beneficiary"
-            required
-            hint="Search by name or number — approved records only."
-          >
-            <Input
-              id="dist-beneficiary"
-              placeholder="e.g. Dela Cruz or TAM-26…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              autoFocus
-            />
-            {search.trim() && candidates && (
-              <div className="mt-2 max-h-52 overflow-y-auto rounded-md border border-line">
-                {candidates.length === 0 ? (
-                  <p className="p-3 text-[13px] text-slate-500">
-                    No approved records match this search. Only Approved applications can receive distribution.
-                  </p>
-                ) : (
-                  <ul className="divide-y divide-line">
-                    {candidates.map((r) => (
-                      <li key={r.id}>
-                        <button
-                          type="button"
-                          className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left hover:bg-surface-muted"
-                          onClick={() => {
-                            setSelected(r);
-                            setPicking(false);
-                          }}
-                        >
-                          <span className="min-w-0">
-                            <span className="block truncate text-[13.5px] font-medium text-navy-900">
-                              {fullName(r)}
-                            </span>
-                            <span className="block text-[12px] text-slate-500">
-                              {r.beneficiary_number}
-                              {r.purok ? ` · ${r.purok}` : ''}
-                            </span>
-                          </span>
-                          <Badge tone="success">Approved</Badge>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
+        {!selected ? (
+          <div className="space-y-3">
+            <Field
+              label="Approved Beneficiary"
+              htmlFor="dist-beneficiary"
+              required
+            >
+              <div className="relative">
+                <Input
+                  id="dist-beneficiary"
+                  placeholder="Filter by name, reference number (TAM-26...), or purok..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  autoFocus
+                />
+                {search && (
+                  <button
+                    type="button"
+                    onClick={() => setSearch('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400 hover:text-slate-600"
+                  >
+                    Clear
+                  </button>
                 )}
               </div>
-            )}
-          </Field>
-        )}
+            </Field>
 
-        {selected && (
-          <div className="flex items-center justify-between gap-3 rounded-md bg-surface-muted p-3">
+            <div className="rounded-xl border border-slate-200/90 bg-white overflow-hidden shadow-2xs">
+              <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/80 px-3 py-2 text-xs">
+                <span className="font-bold uppercase tracking-wider text-slate-600">
+                  Approved Beneficiaries ({filteredCandidates.length} eligible)
+                </span>
+                <span className="text-[11px] text-slate-400">Click a record to select</span>
+              </div>
+
+              {loadingEligible ? (
+                <div className="p-6 text-center text-sm text-slate-500">
+                  Loading approved applicants…
+                </div>
+              ) : filteredCandidates.length === 0 ? (
+                <div className="p-6 text-center text-sm text-slate-500">
+                  {search.trim()
+                    ? `No approved applicants match "${search}".`
+                    : 'No approved applicants found in Barangay Tambacan.'}
+                </div>
+              ) : (
+                <ul className="max-h-56 divide-y divide-slate-100 overflow-y-auto">
+                  {filteredCandidates.map((r) => (
+                    <li key={r.id}>
+                      <button
+                        type="button"
+                        className="group flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left transition-colors hover:bg-sky-50/70"
+                        onClick={() => {
+                          setSelected(r);
+                          setError(null);
+                        }}
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate text-[13.5px] font-bold text-navy-950 group-hover:text-gov-700">
+                            {fullName(r)}
+                          </p>
+                          <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11.5px]">
+                            <span className="rounded bg-amber-50 px-1.5 py-0.5 font-mono text-[11px] font-bold text-amber-900 border border-amber-200/80">
+                              {r.beneficiary_number}
+                            </span>
+                            {r.purok && (
+                              <span className="text-slate-500">
+                                · {r.purok.startsWith('Purok') ? r.purok : `Purok ${r.purok}`}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <Badge tone="success">Approved</Badge>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50/50 p-3.5 shadow-2xs">
             <div className="min-w-0">
-              <p className="truncate text-sm font-medium text-navy-900">{fullName(selected)}</p>
-              <p className="text-[12px] text-slate-500">
-                {selected.beneficiary_number}
-                {selected.purok ? ` · ${selected.purok}` : ''}
-              </p>
+              <div className="flex items-center gap-1.5">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600 text-[11px] text-white font-bold">
+                  ✓
+                </span>
+                <p className="truncate text-sm font-bold text-navy-950">{fullName(selected)}</p>
+              </div>
+              <div className="mt-1 flex flex-wrap items-center gap-2 text-[12px]">
+                <span className="rounded bg-amber-100 px-1.5 py-0.5 font-mono text-[11px] font-bold text-amber-900 border border-amber-200">
+                  {selected.beneficiary_number}
+                </span>
+                {selected.purok && (
+                  <span className="text-slate-600">
+                    {selected.purok.startsWith('Purok') ? selected.purok : `Purok ${selected.purok}`}
+                  </span>
+                )}
+                <Badge tone="success">Approved</Badge>
+              </div>
             </div>
             <Button
               size="sm"
-              variant="ghost"
-              onClick={() => {
-                setSelected(null);
-                setPicking(true);
-              }}
+              variant="secondary"
+              onClick={() => setSelected(null)}
             >
-              Change
+              Change applicant
             </Button>
           </div>
         )}
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Quantity" htmlFor="dist-qty" required hint="1–10,000 units.">
+          <Field label="Quantity" htmlFor="dist-qty" required>
             <Input
               id="dist-qty"
               type="number"
@@ -592,11 +639,6 @@ function RecordDistributionDialog({ onClose, onRecorded }) {
             placeholder="e.g. Family of six; food pack for one week."
           />
         </Field>
-
-        <p className="text-[12.5px] leading-relaxed text-slate-500">
-          Entries start as <span className="font-semibold text-navy-800">Planned</span> — mark released
-          or cancel from the record row.
-        </p>
       </div>
     </Dialog>
   );

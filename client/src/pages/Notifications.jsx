@@ -100,7 +100,6 @@ export default function Notifications() {
     <>
       <PageHeader
         title="Notifications"
-        description="Messages about your account and your disaster assistance application. In-app only — no SMS or email is sent."
         breadcrumbs={[{ label: 'Home', to: '/dashboard' }, { label: 'Notifications' }]}
         actions={
           data && data.unread > 0 ? (
@@ -114,7 +113,6 @@ export default function Notifications() {
       <Card
         className="mb-5"
         title="Filters"
-        subtitle="Narrow your notification history"
       >
         <div className="flex flex-wrap items-end gap-3">
           <div className="w-52">
@@ -188,7 +186,6 @@ export default function Notifications() {
       {!loading && !error && data && rows.length > 0 && (
         <Card
           title={`Your notifications (${data.unread} unread of ${data.total})`}
-          subtitle="Newest first"
         >
           {data.unread === 0 && !unreadOnly && (
             <div className="mb-4">

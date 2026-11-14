@@ -71,7 +71,6 @@ export default function Beneficiaries() {
     <>
       <PageHeader
         title="Beneficiary Profiles"
-        description="Encoded disaster-assistance profiles for Barangay Tambacan, Iligan City."
         breadcrumbs={[
           { label: 'Home', to: '/dashboard' },
           { label: 'Assistance Operations' },
@@ -85,7 +84,16 @@ export default function Beneficiaries() {
         padded={false}
         title="Profile registry"
         subtitle={
-          data ? `${data.total} record(s)` : 'Loading records…'
+          data ? (
+            <span className="inline-flex items-center gap-1.5 mt-0.5">
+              <span className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-amber-100/90 px-2.5 py-0.5 text-[12px] font-bold text-amber-950 shadow-xs">
+                <span className="tabular-nums font-mono text-[13px]">{data.total}</span>
+                <span className="font-semibold text-amber-800">record(s)</span>
+              </span>
+            </span>
+          ) : (
+            'Loading records…'
+          )
         }
         actions={
           <Button variant="secondary" onClick={load} disabled={loading}>

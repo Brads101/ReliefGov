@@ -9,7 +9,20 @@ const app = express();
 app.set('trust proxy', 1);
 // Content-Disposition is exposed so the browser can read the export
 // filename from the cross-origin CSV download (Batch 6).
-app.use(cors({ origin: env.clientOrigin, credentials: true, exposedHeaders: ['Content-Disposition'] }));
+const corsOrigin = (origin, callback) => {
+  if (!origin) return callback(null, true);
+  if (
+    origin === env.clientOrigin ||
+    origin.endsWith('.vercel.app') ||
+    origin.includes('localhost') ||
+    origin.includes('127.0.0.1')
+  ) {
+    return callback(null, origin);
+  }
+  callback(null, origin);
+};
+
+app.use(cors({ origin: corsOrigin, credentials: true, exposedHeaders: ['Content-Disposition'] }));
 
 // JSON body limit: 1 MB everywhere, except document uploads which carry a
 // base64-encoded file of up to 5 MB (~6.7 MB once encoded).
