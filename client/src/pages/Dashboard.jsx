@@ -544,6 +544,26 @@ export default function Dashboard() {
   }, []);
 
   useEffect(load, [load]);
+
+  // Live auto-sync: keep dashboard counters updated every 30 seconds and when the tab regains focus
+  useEffect(() => {
+    const interval = setInterval(() => {
+      api('/dashboard/summary').then(setData).catch(() => {});
+      setRefreshTick((n) => n + 1);
+    }, 30000);
+
+    const onFocus = () => {
+      api('/dashboard/summary').then(setData).catch(() => {});
+      setRefreshTick((n) => n + 1);
+    };
+
+    window.addEventListener('focus', onFocus);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', onFocus);
+    };
+  }, []);
+
   const counts = data?.counts;
   const synthetic = data?.source?.mode === 'synthetic';
 
