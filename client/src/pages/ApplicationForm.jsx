@@ -62,12 +62,10 @@ export default function ApplicationForm() {
   const [submitting, setSubmitting] = useState(false);
 
   // Document upload state
-  const [purpose, setPurpose] = useState(REQUIRED_DOCUMENT_PURPOSE);
-  const [file, setFile] = useState(null);
-  const [fileMime, setFileMime] = useState(null); // sniffed type of `file` — shown as recognition feedback
+  const [activeUploadPurpose, setActiveUploadPurpose] = useState(null);
+  const [uploadingPurpose, setUploadingPurpose] = useState(null);
   const [uploadPct, setUploadPct] = useState(null);
-  const [fileError, setFileError] = useState(null);
-  const [docFeedback, setDocFeedback] = useState(null); // { level, message } — shown inside the upload box
+  const [docFeedback, setDocFeedback] = useState(null); // { level, message, purpose }
   const [busyDoc, setBusyDoc] = useState(null);
 
   const step = FORM_STEPS[stepIndex];
@@ -303,104 +301,72 @@ export default function ApplicationForm() {
 
   /* ---------------------------- documents ---------------------------- */
 
-  const pickFile = async (event) => {
-    const chosen = event.target.files?.[0] || null;
-    setFileError(null);
+  const triggerDirectUpload = (targetPurpose) => {
+    if (!application) {
+      setBanner({ level: 'warning', message: 'Save your draft first so your files can be linked to your application.' });
+      return;
+    }
+    setActiveUploadPurpose(targetPurpose);
     setDocFeedback(null);
-    if (!chosen) {
-      setFile(null);
-      setFileMime(null);
-      return;
+    const input = document.getElementById('direct-file-input');
+    if (input) {
+      input.value = '';
+      input.click();
     }
-    if (chosen.size > MAX_FILE_BYTES) {
-      setFileError(
-        `The file is ${formatBytes(chosen.size)} — the maximum is 5 MB. ` +
-          'Try a smaller photo or a PDF scan.'
-      );
-      setFile(null);
-      setFileMime(null);
-      event.target.value = '';
-      return;
-    }
-    // Type check by sniffed bytes (not `File.type` alone): browsers report
-    // `image/jfif` or an empty MIME for some valid JPEGs, which used to make
-    // a perfectly good photo look unsupported.
-    const mime = await sniffFileMime(chosen);
-    if (!mime) {
-      setFileError(
-        'Only PDF, JPEG, or PNG files are supported. If your photo is HEIC/WEBP, ' +
-          'save or convert it as JPG first, then choose it again.'
-      );
-      setFile(null);
-      setFileMime(null);
-      event.target.value = '';
-      return;
-    }
-    // Recognized — remember the sniffed type so the UI can confirm it back to
-    // the user ("recognized as JPEG") before they press Upload.
-    setFileMime(mime);
-    setFile(chosen);
   };
 
-  const doUpload = async (event) => {
-    if (typeof event?.preventDefault === 'function') event.preventDefault();
-    setFileError(null);
-    setDocFeedback(null);
-    if (!application) {
-      setFileError('Save your draft first, then upload documents.');
+  const handleDirectFileChange = async (event) => {
+    const chosen = event.target.files?.[0];
+    if (!chosen || !activeUploadPurpose) return;
+    const targetPurpose = activeUploadPurpose;
+
+    if (chosen.size > MAX_FILE_BYTES) {
+      setDocFeedback({
+        level: 'error',
+        purpose: targetPurpose,
+        message: `The file is ${formatBytes(chosen.size)} — the maximum is 5 MB. Try a smaller photo or PDF scan.`
+      });
+      event.target.value = '';
       return;
     }
-    if (!file) {
-      setFileError('Choose a file to upload.');
+
+    const mime = await sniffFileMime(chosen);
+    if (!mime) {
+      setDocFeedback({
+        level: 'error',
+        purpose: targetPurpose,
+        message: 'Only PDF, JPEG, or PNG files are supported. If your photo is HEIC/WEBP, save or convert it as JPG first.'
+      });
+      event.target.value = '';
       return;
     }
+
+    setUploadingPurpose(targetPurpose);
     setUploadPct(0);
     try {
       const uploaded = await uploadDocument({
-        file,
+        file: chosen,
         beneficiaryId: application.id,
-        purpose,
+        purpose: targetPurpose,
         onProgress: setUploadPct
       });
-      setFile(null);
-      setFileMime(null);
-      const input = document.getElementById('doc-file-input');
-      if (input) input.value = '';
-      // Verify the document actually reappears in the caller's own list —
-      // success is only reported when the server-side record is visible here.
-      const bundle = await refresh();
-      const attached = (bundle?.documents || []).some(
-        (doc) => (uploaded && doc.id === uploaded.id) || doc.purpose === purpose
-      );
-      setDocFeedback(
-        attached
-          ? { level: 'success', message: `Uploaded and attached: ${uploaded?.file_name || file.name} (${purpose}).` }
-          : {
-              level: 'warning',
-              message:
-                'The upload finished but the file is not showing in your attached documents yet. ' +
-                'Give it a moment, then reload this section before submitting.'
-            }
-      );
+      await refresh();
+      setDocFeedback({
+        level: 'success',
+        purpose: targetPurpose,
+        message: `Attached: ${uploaded?.file_name || chosen.name} (${documentPurposeLabel(targetPurpose)}).`
+      });
     } catch (err) {
-      // Loud, in-box feedback — errors used to be easy to miss as a small
-      // hint under the field, leaving the document count at zero.
-      setDocFeedback({ level: 'error', message: err.message });
-      if (err.details && typeof err.details === 'object') {
-        setFileError(Object.values(err.details)[0]);
-      }
+      setDocFeedback({
+        level: 'error',
+        purpose: targetPurpose,
+        message: err.message || 'Failed to upload document.'
+      });
     } finally {
+      setUploadingPurpose(null);
       setUploadPct(null);
+      event.target.value = '';
     }
-  };
-
-  /** Checklist "Upload this" button: preselect the purpose, open the picker. */
-  const startChecklistUpload = (checklistPurpose) => {
-    setPurpose(checklistPurpose);
-    setFileError(null);
-    setDocFeedback(null);
-    const input = document.getElementById('doc-file-input');
-    if (input) input.click();
   };
 
   const removeDocument = async (doc) => {
@@ -694,10 +660,25 @@ export default function ApplicationForm() {
                   </InlineAlert>
                 )}
 
-                {/* Guided attachment checklist — mirrors the server's submit rule. */}
+                {/* Hidden unified file picker triggered directly by "Upload document" buttons */}
+                <input
+                  id="direct-file-input"
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.jfif,.jpe,.jfi,.pjp,.pjpeg,.png,application/pdf,image/jpeg,image/png"
+                  onChange={handleDirectFileChange}
+                  className="hidden"
+                />
+
+                {docFeedback && (
+                  <InlineAlert level={docFeedback.level} title={docFeedback.level === 'error' ? 'Upload error' : 'Success'}>
+                    {docFeedback.message}
+                  </InlineAlert>
+                )}
+
+                {/* Guided attachment checklist with 1-click direct upload */}
                 <div>
                   <h3 className="mb-2 text-[13px] font-semibold text-navy-900">What to attach</h3>
-                  <ul className="space-y-2">
+                  <ul className="space-y-3">
                     {DOCUMENT_CHECKLIST.map((item) => {
                       const attached = documents.filter(
                         (doc) => doc.purpose === item.purpose && doc.status !== 'Rejected'
@@ -707,10 +688,12 @@ export default function ApplicationForm() {
                         item.purpose === 'Barangay certificate' ||
                         (item.purpose === 'Damage photos' && needsDamagePhoto) ||
                         (item.purpose === 'Medical record' && needsPwdProof);
+                      const isUploading = uploadingPurpose === item.purpose;
+
                       return (
                         <li
                           key={item.purpose}
-                          className={`flex flex-col gap-2 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between ${
+                          className={`flex flex-col gap-3 rounded-lg border p-3.5 transition-all ${
                             done
                               ? 'border-teal-200 bg-teal-50/40'
                               : isRequired
@@ -718,111 +701,109 @@ export default function ApplicationForm() {
                                 : 'border-line bg-white'
                           }`}
                         >
-                          <div className="min-w-0">
-                            <p className="flex flex-wrap items-center gap-2 text-[13px] font-medium text-navy-900">
-                              {item.title}
-                              <Badge tone={done ? 'success' : 'neutral'}>
-                                {done ? `attached (${attached.length})` : 'not attached yet'}
-                              </Badge>
-                              <Badge tone={isRequired ? 'warning' : 'info'}>
-                                {isRequired ? 'required to submit' : 'optional'}
-                              </Badge>
-                            </p>
-                            <p className="mt-1 text-[12px] leading-relaxed text-slate-600">{item.why}</p>
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="min-w-0">
+                              <p className="flex flex-wrap items-center gap-2 text-[13px] font-semibold text-navy-900">
+                                {item.title}
+                                <Badge tone={done ? 'success' : 'neutral'}>
+                                  {done ? `attached (${attached.length})` : 'not attached yet'}
+                                </Badge>
+                                <Badge tone={isRequired ? 'warning' : 'info'}>
+                                  {isRequired ? 'required to submit' : 'optional'}
+                                </Badge>
+                              </p>
+                              <p className="mt-1 text-[12px] leading-relaxed text-slate-600">{item.why}</p>
+                            </div>
+                            <div className="shrink-0">
+                              <Button
+                                size="sm"
+                                variant={done ? 'secondary' : undefined}
+                                disabled={!application || uploadPct !== null || saving}
+                                onClick={() => triggerDirectUpload(item.purpose)}
+                              >
+                                {isUploading ? 'Uploading…' : done ? 'Upload another' : 'Upload document'}
+                              </Button>
+                            </div>
                           </div>
-                          <div className="shrink-0">
-                            <Button
-                              size="sm"
-                              variant={done ? 'secondary' : undefined}
-                              disabled={!application || uploadPct !== null || saving}
-                              onClick={() => startChecklistUpload(item.purpose)}
-                            >
-                              {done ? 'Upload another' : 'Upload this'}
-                            </Button>
-                          </div>
+
+                          {/* Progress bar when this item is uploading */}
+                          {isUploading && uploadPct !== null && (
+                            <div className="pt-1">
+                              <div
+                                className="h-2 w-full overflow-hidden rounded-full bg-slate-200"
+                                role="progressbar"
+                                aria-valuenow={uploadPct}
+                                aria-valuemin={0}
+                                aria-valuemax={100}
+                              >
+                                <div
+                                  className="h-2 rounded-full bg-gov-700 transition-all duration-150"
+                                  style={{ width: `${uploadPct}%` }}
+                                />
+                              </div>
+                              <p className="mt-1 text-[11px] font-medium text-gov-700">Uploading… {uploadPct}%</p>
+                            </div>
+                          )}
+
+                          {/* List of files attached under this specific item */}
+                          {attached.length > 0 && (
+                            <ul className="divide-y divide-teal-100 rounded-md border border-teal-200/80 bg-white/80 px-3 py-1">
+                              {attached.map((doc) => (
+                                <li key={doc.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-[12px]">
+                                  <span className="truncate max-w-[260px] sm:max-w-md font-medium text-navy-900">
+                                    📎 {doc.file_name} <span className="font-normal text-slate-500">({formatBytes(doc.size_bytes)})</span>
+                                  </span>
+                                  <div className="flex items-center gap-2">
+                                    <Button
+                                      size="sm"
+                                      variant="secondary"
+                                      className="h-7 px-2.5 text-[11px]"
+                                      onClick={() => openDocument(doc)}
+                                      disabled={busyDoc === doc.id}
+                                    >
+                                      View
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="danger"
+                                      className="h-7 px-2.5 text-[11px]"
+                                      onClick={() => removeDocument(doc)}
+                                      disabled={busyDoc === doc.id}
+                                    >
+                                      {busyDoc === doc.id ? 'Removing…' : 'Remove'}
+                                    </Button>
+                                  </div>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
                         </li>
                       );
                     })}
-                  </ul>
-                </div>
 
-                {/* Not a nested <form>: this upload UI lives inside the main
-                    application <form>, and a nested form is invalid HTML — the
-                    browser would not bind the submit button to doUpload and the
-                    page would do a native GET submit (reload) instead. */}
-                <div className="space-y-4 rounded-lg border border-line p-4">
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <Field label="What is this document?" htmlFor="doc-purpose">
-                      <Select
-                        id="doc-purpose"
-                        value={purpose}
-                        onChange={(e) => setPurpose(e.target.value)}
-                        options={DOCUMENT_PURPOSE_OPTIONS}
-                      />
-                    </Field>
-                    <Field
-                      label="Choose file"
-                      htmlFor="doc-file-input"
-                      error={fileError}
-                      hint="PDF, JPEG, or PNG · max 5 MB"
-                    >
-                      <input
-                        id="doc-file-input"
-                        type="file"
-                        accept=".pdf,.jpg,.jpeg,.jfif,.jpe,.jfi,.pjp,.pjpeg,.png,application/pdf,image/jpeg,image/png"
-                        onChange={pickFile}
-                        className="block w-full text-[13px] text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-surface-muted file:px-3 file:py-2 file:text-[13px] file:font-medium file:text-navy-800 hover:file:bg-line"
-                      />
-                    </Field>
-                  </div>
-
-                  {/* Recognition feedback: confirm the chosen file back to the
-                      user BEFORE they press Upload — the type shown is the
-                      sniffed one (bytes), not the browser's declaration. */}
-                  {file && (
-                    <p role="status" className="flex items-center gap-1.5 text-[12px] font-medium text-teal-700">
-                      <span aria-hidden="true">✓</span>
-                      <span className="min-w-0 truncate">
-                        {file.name} recognized as {MIME_LABELS[fileMime] || 'a supported file'} ({formatBytes(file.size)}) — ready to upload.
-                      </span>
-                    </p>
-                  )}
-
-                  {uploadPct !== null && (
-                    <div>
-                      <div
-                        className="h-2 w-full overflow-hidden rounded-full bg-slate-200"
-                        role="progressbar"
-                        aria-valuenow={uploadPct}
-                        aria-valuemin={0}
-                        aria-valuemax={100}
-                        aria-label="Upload progress"
-                      >
-                        <div
-                          className="h-2 rounded-full bg-gov-700 transition-all duration-200"
-                          style={{ width: `${uploadPct}%` }}
-                        />
+                    {/* Optional additional supporting document row */}
+                    <li className="flex flex-col gap-2 rounded-lg border border-line bg-white p-3.5 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0">
+                        <p className="flex flex-wrap items-center gap-2 text-[13px] font-semibold text-navy-900">
+                          Other supporting document
+                          <Badge tone="info">optional</Badge>
+                        </p>
+                        <p className="mt-1 text-[12px] leading-relaxed text-slate-600">
+                          Attach any other valid document, proof of residency, or clearance you wish to submit to barangay staff.
+                        </p>
                       </div>
-                      <p className="mt-1 text-[12px] text-slate-500">Uploading… {uploadPct}%</p>
-                    </div>
-                  )}
-
-                  <Button
-                    type="button"
-                    onClick={() => doUpload()}
-                    disabled={uploadPct !== null || !application || saving}
-                  >
-                    {uploadPct !== null ? 'Uploading…' : 'Upload document'}
-                  </Button>
-
-                  {/* In-box feedback: success, verification, and errors are
-                      shown right where the upload happens so a failed upload
-                      cannot be mistaken for a successful one. */}
-                  {docFeedback && (
-                    <InlineAlert level={docFeedback.level} title={docFeedback.level === 'error' ? 'Upload failed' : undefined}>
-                      {docFeedback.message}
-                    </InlineAlert>
-                  )}
+                      <div className="shrink-0">
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          disabled={!application || uploadPct !== null || saving}
+                          onClick={() => triggerDirectUpload('Other')}
+                        >
+                          {uploadingPurpose === 'Other' ? 'Uploading…' : 'Upload document'}
+                        </Button>
+                      </div>
+                    </li>
+                  </ul>
                 </div>
 
                 <div>
