@@ -271,7 +271,7 @@ export default function ApplicationForm() {
       setStepIndex(index >= 0 ? index : 0);
       setBanner({
         level: 'error',
-        message: 'You indicated a PWD in your household. Please attach a PWD ID or Medical Certificate before submitting.'
+        message: 'You indicated a PWD in your household. Please attach a PWD ID before submitting.'
       });
       window.scrollTo({ top: 0 });
       return;
@@ -519,7 +519,7 @@ export default function ApplicationForm() {
                   htmlFor="is_pwd"
                   required
                   error={errors.is_pwd}
-                  hint={form.is_pwd === 'Yes' ? 'A PWD ID or Medical Certificate will be required in the Documents step.' : undefined}
+                  hint={form.is_pwd === 'Yes' ? 'A PWD ID will be required in the Documents step.' : undefined}
                 >
                   <Select
                     name="is_pwd"
@@ -935,8 +935,8 @@ export default function ApplicationForm() {
                       </InlineAlert>
                     )}
                     {needsPwdProof && !hasPwdProof && (
-                      <InlineAlert level="warning" title="PWD ID or Medical Certificate missing">
-                        You indicated a PWD in the household. Please upload a PWD ID or Medical Certificate before submitting.
+                      <InlineAlert level="warning" title="PWD ID missing">
+                        You indicated a PWD in the household. Please upload a PWD ID before submitting.
                       </InlineAlert>
                     )}
                   </div>
@@ -1023,8 +1023,8 @@ export default function ApplicationForm() {
                 )}
 
                 {needsPwdProof && !hasPwdProof && (
-                  <InlineAlert level="warning" title="PWD ID or Medical Certificate required">
-                    You indicated a person with disability (PWD) in the household. A PWD ID or Medical Certificate is required before you can submit.{' '}
+                  <InlineAlert level="warning" title="PWD ID required">
+                    You indicated a person with disability (PWD) in the household. A PWD ID is required before you can submit.{' '}
                     <button
                       type="button"
                       className="font-semibold underline"
@@ -1046,7 +1046,7 @@ export default function ApplicationForm() {
                       {[
                         !hasIdentityOrResidency && 'Barangay Certificate / National ID / Barangay ID',
                         needsDamagePhoto && !hasDamagePhoto && 'Photo of the Damaged House',
-                        needsPwdProof && !hasPwdProof && 'PWD ID or Medical Certificate'
+                        needsPwdProof && !hasPwdProof && 'PWD ID'
                       ]
                         .filter(Boolean)
                         .join(', ')}

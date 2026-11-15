@@ -557,8 +557,8 @@ export async function submitOwnApplication(user) {
 
   const isPwd = application.is_pwd === true || application.is_pwd === 'Yes';
   if (isPwd && !activeDocs.some((doc) => doc.purpose === 'Medical record')) {
-    throw badRequest('A PWD ID or Medical Certificate is required before submission when PWD status is claimed.', {
-      documents: 'Please upload a PWD ID or Medical Certificate in the Documents section, then submit again.'
+    throw badRequest('A PWD ID is required before submission when PWD status is claimed.', {
+      documents: 'Please upload a PWD ID in the Documents section, then submit again.'
     });
   }
 

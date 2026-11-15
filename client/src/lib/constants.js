@@ -177,7 +177,7 @@ export const DOCUMENT_PURPOSE_LABELS = {
   'Damage photos': 'Photo of the damaged house',
   'Valid ID': 'National ID',
   'Proof of residence': 'Barangay ID',
-  'Medical record': 'PWD ID or Medical Certificate',
+  'Medical record': 'PWD ID',
   'Other': 'Other'
 };
 
@@ -195,7 +195,7 @@ export const DOCUMENT_PURPOSE_OPTIONS = DOCUMENT_PURPOSES.map((purpose) => ({
  * Proof of residency/identity gives choices: Barangay Certificate of Residency,
  * National ID, or Barangay ID (either one satisfies the requirement to submit).
  * Damage photo is required whenever property damage is claimed (Minor, Major, Total);
- * PWD ID / Medical Certificate is required whenever PWD status is claimed (is_pwd = Yes).
+ * PWD ID is required whenever PWD status is claimed (is_pwd = Yes).
  * `purpose` values must stay inside DOCUMENT_PURPOSES (DB check constraint,
  * migration 0002).
  */
@@ -217,7 +217,7 @@ export const OTHER_DOCUMENT_CHECKLIST = [
   },
   {
     purpose: 'Medical record',
-    title: 'PWD ID or Medical Certificate',
+    title: 'PWD ID',
     category: 'pwd',
     why: 'Required when disability status (PWD) is reported in the household — provides official proof to ensure fair and validated vulnerability scoring.'
   }
