@@ -808,6 +808,10 @@ export default function ApplicationForm() {
 
                     {/* 2. Other supporting document cards (Damage photo, PWD proof) */}
                     {DOCUMENT_CHECKLIST.map((item) => {
+                      if (item.category === 'pwd' && !needsPwdProof) {
+                        return null;
+                      }
+
                       const attached = documents.filter(
                         (doc) => doc.purpose === item.purpose && doc.status !== 'Rejected'
                       );
@@ -836,8 +840,8 @@ export default function ApplicationForm() {
                                 <Badge tone={done ? 'success' : 'neutral'}>
                                   {done ? `attached (${attached.length})` : 'not attached yet'}
                                 </Badge>
-                                <Badge tone={isRequired ? 'warning' : 'info'}>
-                                  {isRequired ? 'required to submit' : 'optional'}
+                                <Badge tone={done ? 'success' : isRequired ? 'warning' : 'info'}>
+                                  {done ? 'satisfied ✓' : isRequired ? 'required to submit' : 'optional'}
                                 </Badge>
                               </p>
                               <p className="mt-1 text-[12px] leading-relaxed text-slate-600">{item.why}</p>
