@@ -467,7 +467,9 @@ export function validateStep(stepKey, form) {
     else if (new Date(form.date_of_birth) > new Date()) set('date_of_birth', 'Date of birth cannot be in the future.');
     if (!text(form.civil_status)) set('civil_status', 'Please select an option.');
     if (!text(form.is_pwd)) set('is_pwd', 'Please select whether you or any member has a disability (PWD).');
-    if (text(form.mobile_number) && !MOBILE_RE.test(text(form.mobile_number))) {
+    if (!text(form.mobile_number)) {
+      set('mobile_number', 'Mobile number is required.');
+    } else if (!MOBILE_RE.test(text(form.mobile_number))) {
       set('mobile_number', 'Use a Philippine mobile number like 09171234567.');
     }
   }

@@ -535,6 +535,7 @@ export default function ApplicationForm() {
                 <Field
                   label="Mobile number"
                   htmlFor="mobile_number"
+                  required
                   error={errors.mobile_number}
                 >
                   <Input
@@ -961,7 +962,7 @@ export default function ApplicationForm() {
                   <div><dt className="text-slate-500">Disability status (PWD)</dt>
                     <dd className="font-medium text-navy-900">{form.is_pwd === 'Yes' ? 'Yes (PWD in household)' : 'No'}</dd></div>
                   <div><dt className="text-slate-500">Mobile number</dt>
-                    <dd className="font-medium text-navy-900">{form.mobile_number || 'Not provided'}</dd></div>
+                    <dd className="font-medium text-navy-900">{form.mobile_number || '—'}</dd></div>
                   <div><dt className="text-slate-500">Purok / zone</dt>
                     <dd className="font-medium text-navy-900">{form.purok === 'Other (specify)' ? form.purok_other : form.purok || '—'}</dd></div>
                   <div><dt className="text-slate-500">Barangay</dt>

@@ -129,7 +129,7 @@ const FIELD_RULES = {
   sex: (val) => enumValue(val, { label: 'Sex', allowed: SEXES }),
   date_of_birth: (val) => dateValue(val, { label: 'Date of birth' }),
   civil_status: (val) => enumValue(val, { label: 'Civil status', allowed: CIVIL_STATUSES }),
-  mobile_number: (val) => mobile(val),
+  mobile_number: (val) => mobile(val, { required: true }),
   is_pwd: (val) => {
     if (val === undefined || val === null || val === '') return null;
     if (typeof val === 'boolean' || ['Yes', 'No', 'true', 'false'].includes(String(val))) return null;
