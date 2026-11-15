@@ -359,11 +359,7 @@ export default function ApplicationForm() {
         onProgress: setUploadPct
       });
       await refresh();
-      setDocFeedback({
-        level: 'success',
-        purpose: targetPurpose,
-        message: `Attached: ${uploaded?.file_name || chosen.name} (${documentPurposeLabel(targetPurpose)}).`
-      });
+      setDocFeedback(null);
     } catch (err) {
       setDocFeedback({
         level: 'error',
@@ -682,8 +678,8 @@ export default function ApplicationForm() {
                   className="hidden"
                 />
 
-                {docFeedback && (
-                  <InlineAlert level={docFeedback.level} title={docFeedback.level === 'error' ? 'Upload error' : 'Success'}>
+                {docFeedback && docFeedback.level === 'error' && (
+                  <InlineAlert level="error" title="Upload error">
                     {docFeedback.message}
                   </InlineAlert>
                 )}
