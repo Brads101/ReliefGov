@@ -796,29 +796,6 @@ export default function ApplicationForm() {
                         </li>
                       );
                     })}
-
-                    {/* Optional additional supporting document row */}
-                    <li className="flex flex-col gap-2 rounded-lg border border-line bg-white p-3.5 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="min-w-0">
-                        <p className="flex flex-wrap items-center gap-2 text-[13px] font-semibold text-navy-900">
-                          Other supporting document
-                          <Badge tone="info">optional</Badge>
-                        </p>
-                        <p className="mt-1 text-[12px] leading-relaxed text-slate-600">
-                          Attach any other valid document, proof of residency, or clearance you wish to submit to barangay staff.
-                        </p>
-                      </div>
-                      <div className="shrink-0">
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          disabled={!application || uploadPct !== null || saving}
-                          onClick={() => triggerDirectUpload('Other')}
-                        >
-                          {uploadingPurpose === 'Other' ? 'Uploading…' : 'Upload document'}
-                        </Button>
-                      </div>
-                    </li>
                   </ul>
                 </div>
 
