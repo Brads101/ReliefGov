@@ -703,9 +703,9 @@ export default function ApplicationForm() {
                             <Badge tone={hasIdentityOrResidency ? 'success' : 'neutral'}>
                               {hasIdentityOrResidency ? `attached (${identityDocs.length})` : 'not attached yet'}
                             </Badge>
-                            <Badge tone={hasIdentityOrResidency ? 'success' : 'warning'}>
-                              {hasIdentityOrResidency ? 'satisfied ✓' : 'required to submit'}
-                            </Badge>
+                            {!hasIdentityOrResidency && (
+                              <Badge tone="warning">required to submit</Badge>
+                            )}
                           </p>
                           <p className="mt-1 text-[12px] leading-relaxed text-slate-600">
                             Select whichever document you have available, then click upload. Any one of the options satisfies the requirement to submit.
@@ -840,9 +840,11 @@ export default function ApplicationForm() {
                                 <Badge tone={done ? 'success' : 'neutral'}>
                                   {done ? `attached (${attached.length})` : 'not attached yet'}
                                 </Badge>
-                                <Badge tone={done ? 'success' : isRequired ? 'warning' : 'info'}>
-                                  {done ? 'satisfied ✓' : isRequired ? 'required to submit' : 'optional'}
-                                </Badge>
+                                {!done && (
+                                  <Badge tone={isRequired ? 'warning' : 'info'}>
+                                    {isRequired ? 'required to submit' : 'optional'}
+                                  </Badge>
+                                )}
                               </p>
                               <p className="mt-1 text-[12px] leading-relaxed text-slate-600">{item.why}</p>
                             </div>
