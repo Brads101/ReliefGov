@@ -80,7 +80,12 @@ export default function ApplicationForm() {
     () => documents.some((doc) => doc.purpose === 'Damage photos' && doc.status !== 'Rejected'),
     [documents]
   );
-  const canSubmit = hasCertificate && (!needsDamagePhoto || hasDamagePhoto);
+  const needsPwdProof = Boolean(form.is_pwd === 'Yes' || form.is_pwd === true);
+  const hasPwdProof = useMemo(
+    () => documents.some((doc) => doc.purpose === 'Medical record' && doc.status !== 'Rejected'),
+    [documents]
+  );
+  const canSubmit = hasCertificate && (!needsDamagePhoto || hasDamagePhoto) && (!needsPwdProof || hasPwdProof);
 
   const refresh = useCallback(async () => {
     const bundle = await api('/applications/mine');
@@ -239,6 +244,18 @@ export default function ApplicationForm() {
       setBanner({
         level: 'error',
         message: 'You reported property damage. Please attach at least one photo of the damaged house before submitting.'
+      });
+      window.scrollTo({ top: 0 });
+      return;
+    }
+
+    if (needsPwdProof && !hasPwdProof) {
+      setConfirmOpen(false);
+      const index = FORM_STEPS.findIndex((s) => s.key === 'documents');
+      setStepIndex(index >= 0 ? index : 0);
+      setBanner({
+        level: 'error',
+        message: 'You indicated a PWD in your household. Please attach a PWD ID or Medical Certificate before submitting.'
       });
       window.scrollTo({ top: 0 });
       return;
@@ -522,6 +539,7 @@ export default function ApplicationForm() {
                   htmlFor="is_pwd"
                   required
                   error={errors.is_pwd}
+                  hint={form.is_pwd === 'Yes' ? 'A PWD ID or Medical Certificate will be required in the Documents step.' : undefined}
                 >
                   <Select
                     name="is_pwd"
@@ -642,9 +660,9 @@ export default function ApplicationForm() {
               <div className="space-y-5">
                 <p className="text-[13px] leading-relaxed text-slate-600">
                   Attach your <strong>Barangay Certificate of Residency</strong> — it is required before you can submit.
-                  {needsDamagePhoto
-                    ? ' Because you reported property damage, at least one photo of the damaged house is also required.'
-                    : ' Damage photos and other proof are optional.'}{' '}
+                  {needsDamagePhoto && ' Because you reported property damage, at least one photo of the damaged house is also required.'}
+                  {needsPwdProof && ' Because you reported a PWD in the household, a PWD ID or Medical Certificate is also required.'}
+                  {!needsDamagePhoto && !needsPwdProof && ' Damage photos, PWD proof, and other documents are optional.'}{' '}
                   Files are accepted as PDF, JPEG, or PNG up to 5 MB each.
                 </p>
 
@@ -663,7 +681,10 @@ export default function ApplicationForm() {
                         (doc) => doc.purpose === item.purpose && doc.status !== 'Rejected'
                       );
                       const done = attached.length > 0;
-                      const isRequired = item.purpose === 'Barangay certificate' || (item.purpose === 'Damage photos' && needsDamagePhoto);
+                      const isRequired =
+                        item.purpose === 'Barangay certificate' ||
+                        (item.purpose === 'Damage photos' && needsDamagePhoto) ||
+                        (item.purpose === 'Medical record' && needsPwdProof);
                       return (
                         <li
                           key={item.purpose}
@@ -833,6 +854,13 @@ export default function ApplicationForm() {
                       </InlineAlert>
                     </div>
                   )}
+                  {needsPwdProof && !hasPwdProof && (
+                    <div className="mt-3">
+                      <InlineAlert level="warning" title="PWD ID or Medical Certificate missing">
+                        You indicated a PWD in the household. Please upload a PWD ID or Medical Certificate before submitting.
+                      </InlineAlert>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -881,6 +909,9 @@ export default function ApplicationForm() {
                       {needsDamagePhoto && (
                         hasDamagePhoto ? ' · Damage photo ✓' : ' · Damage photo missing ✗'
                       )}
+                      {needsPwdProof && (
+                        hasPwdProof ? ' · PWD proof ✓' : ' · PWD proof missing ✗'
+                      )}
                     </dd></div>
                 </dl>
 
@@ -912,17 +943,35 @@ export default function ApplicationForm() {
                   </InlineAlert>
                 )}
 
+                {needsPwdProof && !hasPwdProof && (
+                  <InlineAlert level="warning" title="PWD ID or Medical Certificate required">
+                    You indicated a person with disability (PWD) in the household. A PWD ID or Medical Certificate is required before you can submit.{' '}
+                    <button
+                      type="button"
+                      className="font-semibold underline"
+                      onClick={() => jumpToStep(FORM_STEPS.findIndex((s) => s.key === 'documents'))}
+                    >
+                      Go to the Documents section
+                    </button>
+                    .
+                  </InlineAlert>
+                )}
+
                 <div className="flex flex-col gap-2 border-t border-line pt-4 sm:flex-row sm:items-center">
                   <Button onClick={() => setConfirmOpen(true)} disabled={saving || submitting || !canSubmit}>
                     Submit application for verification
                   </Button>
                   {!canSubmit && (
                     <p className="text-[12px] text-slate-500">
-                      {!hasCertificate && needsDamagePhoto && !hasDamagePhoto
-                        ? 'Submitting unlocks once your Barangay Certificate of Residency and Damage Photo are attached.'
-                        : !hasCertificate
-                          ? 'Submitting unlocks once your Barangay Certificate of Residency is attached (Documents section).'
-                          : 'Submitting unlocks once a Photo of the Damaged House is attached (Documents section).'}
+                      Please attach all required documents in the Documents section to unlock submission (
+                      {[
+                        !hasCertificate && 'Barangay Certificate of Residency',
+                        needsDamagePhoto && !hasDamagePhoto && 'Photo of the Damaged House',
+                        needsPwdProof && !hasPwdProof && 'PWD ID or Medical Certificate'
+                      ]
+                        .filter(Boolean)
+                        .join(', ')}
+                      ).
                     </p>
                   )}
                 </div>

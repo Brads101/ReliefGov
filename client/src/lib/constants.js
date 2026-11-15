@@ -149,7 +149,7 @@ export const DOCUMENT_PURPOSE_LABELS = {
   'Damage photos': 'Photo of the damaged house',
   'Valid ID': 'National ID',
   'Proof of residence': 'Proof of residence',
-  'Medical record': 'Medical record',
+  'Medical record': 'PWD ID or Medical Certificate',
   'Other': 'Other'
 };
 
@@ -165,7 +165,8 @@ export const DOCUMENT_PURPOSE_OPTIONS = DOCUMENT_PURPOSES.map((purpose) => ({
 /**
  * Guided attachment checklist shown in the form's Documents section.
  * Mirrors server rules: Barangay Certificate of Residency is required for all;
- * Damage photo is required whenever property damage is claimed (Minor, Major, Total).
+ * Damage photo is required whenever property damage is claimed (Minor, Major, Total);
+ * PWD ID / Medical Certificate is required whenever PWD status is claimed (is_pwd = Yes).
  * `purpose` values must stay inside DOCUMENT_PURPOSES (DB check constraint,
  * migration 0002).
  */
@@ -175,6 +176,12 @@ export const DOCUMENT_CHECKLIST = [
     title: 'Barangay Certificate of Residency',
     required: true,
     why: 'Required before you can submit — the barangay office uses it to certify your residency in Barangay Tambacan and disaster calamity status.'
+  },
+  {
+    purpose: 'Medical record',
+    title: 'PWD ID or Medical Certificate',
+    required: false, // dynamically set to true when is_pwd is Yes
+    why: 'Required when disability status (PWD) is reported in the household — provides official proof to ensure fair and validated vulnerability scoring.'
   },
   {
     purpose: 'Damage photos',
