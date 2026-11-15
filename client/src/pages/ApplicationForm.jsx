@@ -651,13 +651,6 @@ export default function ApplicationForm() {
 
             {step.key === 'documents' && (
               <div className="space-y-5">
-                <p className="text-[13px] leading-relaxed text-slate-600">
-                  Attach at least one proof of identity or residency (<strong>Barangay Certificate of Residency</strong>, <strong>National ID</strong>, or <strong>Barangay ID</strong>) — any one of the three satisfies the identity requirement to submit.
-                  {needsDamagePhoto && ' Because you reported property damage, at least one photo of the damaged house is also required.'}
-                  {needsPwdProof && ' Because you reported a PWD in the household, a PWD ID or Medical Certificate is also required.'}
-                  {' '}Files are accepted as PDF, JPEG, or PNG up to 5 MB each.
-                </p>
-
                 {/* Prominent reminder that submission cannot proceed without an ID/residency document */}
                 <div className="rounded-lg border border-amber-300 bg-amber-50/80 p-3.5 text-[13px] text-amber-950">
                   <div className="flex items-start gap-2.5">
@@ -665,7 +658,7 @@ export default function ApplicationForm() {
                     <div>
                       <strong className="font-semibold">Important Submission Requirement:</strong>
                       <p className="mt-0.5 leading-relaxed">
-                        You <strong>cannot submit</strong> your application without attaching at least one valid ID or residency document from the options below (<strong>Barangay Certificate of Residency</strong>, <strong>National ID</strong>, or <strong>Barangay ID</strong>). Please attach whichever option you currently have.
+                        You <strong>cannot submit</strong> your application without attaching at least one valid ID or residency document from the options below (<strong>Barangay Certificate of Residency</strong>, <strong>National ID</strong>, or <strong>Barangay ID</strong>). Please attach whichever option you currently have (PDF, JPEG, or PNG up to 5 MB each).
                       </p>
                     </div>
                   </div>
