@@ -281,7 +281,10 @@ export async function getMineBundle(user) {
     application,
     documents,
     history,
-    hasBarangayCertificate: documents.some((doc) => doc.purpose === 'Barangay certificate')
+    hasBarangayCertificate: documents.some((doc) => doc.purpose === 'Barangay certificate'),
+    hasIdentityOrResidency: documents.some((doc) =>
+      ['Barangay certificate', 'Valid ID', 'Proof of residence'].includes(doc.purpose)
+    )
   };
 }
 
@@ -363,7 +366,9 @@ export async function syncHouseholdForBeneficiary(beneficiaryId) {
       .from('documents')
       .select('purpose, status')
       .eq('beneficiary_id', b.id);
-    const hasCert = (docs || []).some((d) => d.purpose === 'Barangay certificate' && d.status !== 'Rejected');
+    const hasCert = (docs || []).some(
+      (d) => ['Barangay certificate', 'Valid ID', 'Proof of residence'].includes(d.purpose) && d.status !== 'Rejected'
+    );
 
     let hhId = b.household_id;
     let hhNo = b.household_no;
@@ -537,10 +542,17 @@ export async function submitOwnApplication(user) {
 
   const activeDocs = (documents || []).filter((doc) => doc.status !== 'Rejected');
 
-  if (!activeDocs.some((doc) => doc.purpose === 'Barangay certificate')) {
-    throw badRequest('A Barangay Certificate of Residency is required before submission.', {
-      documents: 'Please upload your Barangay Certificate of Residency in the Documents section, then submit again.'
-    });
+  const hasIdentityOrResidency = activeDocs.some((doc) =>
+    ['Barangay certificate', 'Valid ID', 'Proof of residence'].includes(doc.purpose)
+  );
+  if (!hasIdentityOrResidency) {
+    throw badRequest(
+      'Proof of residency or identity (Barangay Certificate of Residency, National ID, or Barangay ID) is required before submission.',
+      {
+        documents:
+          'Please upload either your Barangay Certificate of Residency, National ID, or Barangay ID in the Documents section, then submit again.'
+      }
+    );
   }
 
   const isPwd = application.is_pwd === true || application.is_pwd === 'Yes';

@@ -175,7 +175,7 @@ export const DOCUMENT_PURPOSES = [
 export const DOCUMENT_PURPOSE_LABELS = {
   'Barangay certificate': 'Barangay Certificate of Residency',
   'Damage photos': 'Photo of the damaged house',
-  'Valid ID': 'National ID',
+  'Valid ID': 'National ID or Barangay ID',
   'Proof of residence': 'Proof of residence',
   'Medical record': 'PWD ID or Medical Certificate',
   'Other': 'Other'
@@ -192,7 +192,8 @@ export const DOCUMENT_PURPOSE_OPTIONS = DOCUMENT_PURPOSES.map((purpose) => ({
 
 /**
  * Guided attachment checklist shown in the form's Documents section.
- * Mirrors server rules: Barangay Certificate of Residency is required for all;
+ * Proof of residency/identity gives choices: Barangay Certificate of Residency,
+ * National ID, or Barangay ID (either one satisfies the requirement to submit).
  * Damage photo is required whenever property damage is claimed (Minor, Major, Total);
  * PWD ID / Medical Certificate is required whenever PWD status is claimed (is_pwd = Yes).
  * `purpose` values must stay inside DOCUMENT_PURPOSES (DB check constraint,
@@ -202,26 +203,26 @@ export const DOCUMENT_CHECKLIST = [
   {
     purpose: 'Barangay certificate',
     title: 'Barangay Certificate of Residency',
-    required: true,
-    why: 'Required before you can submit — the barangay office uses it to certify your residency in Barangay Tambacan and disaster calamity status.'
+    category: 'identity_residency',
+    why: 'Proof of residency option — you can attach this OR your National ID / Barangay ID to verify your residency in Barangay Tambacan.'
+  },
+  {
+    purpose: 'Valid ID',
+    title: 'National ID or Barangay ID',
+    category: 'identity_residency',
+    why: 'Proof of identity & residency option — you can attach this OR your Barangay Certificate of Residency to verify your identity.'
   },
   {
     purpose: 'Medical record',
     title: 'PWD ID or Medical Certificate',
-    required: false, // dynamically set to true when is_pwd is Yes
+    category: 'pwd',
     why: 'Required when disability status (PWD) is reported in the household — provides official proof to ensure fair and validated vulnerability scoring.'
   },
   {
     purpose: 'Damage photos',
     title: 'Photo of the damaged house',
-    required: false, // dynamically set to true when damage_extent is Minor, Major, or Total
+    category: 'damage',
     why: 'Required when property damage is claimed (Partially, Heavily Flooded, or Totally) — provides photographic evidence of the damage to ensure objective validation.'
-  },
-  {
-    purpose: 'Valid ID',
-    title: 'National ID',
-    required: false,
-    why: 'Recommended — helps the office confirm your identity during validation. Identity documents are deliberately never used in vulnerability scoring.'
   }
 ];
 

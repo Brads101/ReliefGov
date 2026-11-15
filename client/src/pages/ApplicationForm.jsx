@@ -16,7 +16,7 @@ import {
   INCIDENT_TYPE_OPTIONS, incidentTypeOptions, DAMAGE_EXTENT_OPTIONS, damageExtentLabel,
   getDamageExtentOptions,
   houseStatusOptions,
-  PUROK_OPTIONS, isFloodPronePurok, DOCUMENT_PURPOSES, REQUIRED_DOCUMENT_PURPOSE,
+  PUROK_OPTIONS, isFloodPronePurok, DOCUMENT_PURPOSES,
   DOCUMENT_CHECKLIST, DOCUMENT_PURPOSE_OPTIONS, documentPurposeLabel,
   EDITABLE_STATUSES, EMPTY_FORM, validateStep, toApiPayload, fromApiApplication
 } from '../lib/constants.js';
@@ -70,8 +70,13 @@ export default function ApplicationForm() {
 
   const step = FORM_STEPS[stepIndex];
   const canEdit = !application || EDITABLE_STATUSES.includes(application.application_status);
-  const hasCertificate = useMemo(
-    () => documents.some((doc) => doc.purpose === REQUIRED_DOCUMENT_PURPOSE && doc.status !== 'Rejected'),
+  const hasIdentityOrResidency = useMemo(
+    () =>
+      documents.some(
+        (doc) =>
+          ['Barangay certificate', 'Valid ID', 'Proof of residence'].includes(doc.purpose) &&
+          doc.status !== 'Rejected'
+      ),
     [documents]
   );
   const needsDamagePhoto = Boolean(form.damage_extent && form.damage_extent !== 'None');
@@ -84,7 +89,7 @@ export default function ApplicationForm() {
     () => documents.some((doc) => doc.purpose === 'Medical record' && doc.status !== 'Rejected'),
     [documents]
   );
-  const canSubmit = hasCertificate && (!needsDamagePhoto || hasDamagePhoto) && (!needsPwdProof || hasPwdProof);
+  const canSubmit = hasIdentityOrResidency && (!needsDamagePhoto || hasDamagePhoto) && (!needsPwdProof || hasPwdProof);
 
   const refresh = useCallback(async () => {
     const bundle = await api('/applications/mine');
@@ -233,13 +238,13 @@ export default function ApplicationForm() {
 
     // Client-side copy of the server's document requirements: send the user to the
     // Documents section instead of letting the server bounce the submit.
-    if (!hasCertificate) {
+    if (!hasIdentityOrResidency) {
       setConfirmOpen(false);
       const index = FORM_STEPS.findIndex((s) => s.key === 'documents');
       setStepIndex(index >= 0 ? index : 0);
       setBanner({
         level: 'error',
-        message: 'Attach your Barangay Certificate of Residency first — the office requires it before your application can be submitted.'
+        message: 'Attach either your Barangay Certificate of Residency, National ID, or Barangay ID before submitting.'
       });
       window.scrollTo({ top: 0 });
       return;
@@ -647,11 +652,10 @@ export default function ApplicationForm() {
             {step.key === 'documents' && (
               <div className="space-y-5">
                 <p className="text-[13px] leading-relaxed text-slate-600">
-                  Attach your <strong>Barangay Certificate of Residency</strong> — it is required before you can submit.
+                  Attach at least one proof of identity or residency (<strong>Barangay Certificate of Residency</strong>, <strong>National ID</strong>, or <strong>Barangay ID</strong>) — either one satisfies the requirement to submit.
                   {needsDamagePhoto && ' Because you reported property damage, at least one photo of the damaged house is also required.'}
                   {needsPwdProof && ' Because you reported a PWD in the household, a PWD ID or Medical Certificate is also required.'}
-                  {!needsDamagePhoto && !needsPwdProof && ' Damage photos, PWD proof, and other documents are optional.'}{' '}
-                  Files are accepted as PDF, JPEG, or PNG up to 5 MB each.
+                  {' '}Files are accepted as PDF, JPEG, or PNG up to 5 MB each.
                 </p>
 
                 {!application && (
@@ -684,10 +688,12 @@ export default function ApplicationForm() {
                         (doc) => doc.purpose === item.purpose && doc.status !== 'Rejected'
                       );
                       const done = attached.length > 0;
-                      const isRequired =
-                        item.purpose === 'Barangay certificate' ||
-                        (item.purpose === 'Damage photos' && needsDamagePhoto) ||
-                        (item.purpose === 'Medical record' && needsPwdProof);
+                      const isIdentityItem = item.category === 'identity_residency';
+                      const isRequired = isIdentityItem
+                        ? !hasIdentityOrResidency
+                        : (item.category === 'damage' && needsDamagePhoto) ||
+                          (item.category === 'pwd' && needsPwdProof);
+                      const isPendingRequired = isRequired && !done;
                       const isUploading = uploadingPurpose === item.purpose;
 
                       return (
@@ -696,7 +702,7 @@ export default function ApplicationForm() {
                           className={`flex flex-col gap-3 rounded-lg border p-3.5 transition-all ${
                             done
                               ? 'border-teal-200 bg-teal-50/40'
-                              : isRequired
+                              : isPendingRequired
                                 ? 'border-amber-200 bg-amber-50/50'
                                 : 'border-line bg-white'
                           }`}
@@ -708,9 +714,19 @@ export default function ApplicationForm() {
                                 <Badge tone={done ? 'success' : 'neutral'}>
                                   {done ? `attached (${attached.length})` : 'not attached yet'}
                                 </Badge>
-                                <Badge tone={isRequired ? 'warning' : 'info'}>
-                                  {isRequired ? 'required to submit' : 'optional'}
-                                </Badge>
+                                {isIdentityItem ? (
+                                  hasIdentityOrResidency ? (
+                                    <Badge tone={done ? 'success' : 'neutral'}>
+                                      {done ? 'satisfied ✓' : 'optional (ID satisfied ✓)'}
+                                    </Badge>
+                                  ) : (
+                                    <Badge tone="warning">1 required (choose either one)</Badge>
+                                  )
+                                ) : (
+                                  <Badge tone={isRequired ? 'warning' : 'info'}>
+                                    {isRequired ? 'required to submit' : 'optional'}
+                                  </Badge>
+                                )}
                               </p>
                               <p className="mt-1 text-[12px] leading-relaxed text-slate-600">{item.why}</p>
                             </div>
@@ -823,11 +839,14 @@ export default function ApplicationForm() {
                               <Badge tone={doc.status === 'Accepted' ? 'success' : doc.status === 'Rejected' ? 'danger' : 'neutral'}>
                                 {doc.status}
                               </Badge>
-                              {doc.purpose === REQUIRED_DOCUMENT_PURPOSE && (
-                                <Badge tone="warning">Certificate of Residency</Badge>
+                              {['Barangay certificate', 'Valid ID', 'Proof of residence'].includes(doc.purpose) && (
+                                <Badge tone="success">Proof of Identity / Residency</Badge>
                               )}
                               {doc.purpose === 'Damage photos' && (
                                 <Badge tone="info">Damage photo</Badge>
+                              )}
+                              {doc.purpose === 'Medical record' && (
+                                <Badge tone="info">PWD proof</Badge>
                               )}
                             </p>
                           </div>
@@ -843,10 +862,10 @@ export default function ApplicationForm() {
                       ))}
                     </ul>
                   )}
-                  {!hasCertificate && (
+                  {!hasIdentityOrResidency && (
                     <div className="mt-3">
-                      <InlineAlert level="warning" title="Barangay Certificate of Residency missing">
-                        Upload your Barangay Certificate of Residency before submitting your application.
+                      <InlineAlert level="warning" title="Proof of identity or residency missing">
+                        Upload either your Barangay Certificate of Residency, National ID, or Barangay ID before submitting your application.
                       </InlineAlert>
                     </div>
                   )}
@@ -908,7 +927,7 @@ export default function ApplicationForm() {
                     <dd className="font-medium text-navy-900">
                       {documents.length} file(s)
                       {' · '}
-                      {hasCertificate ? 'Certificate of Residency ✓' : 'Certificate of Residency missing ✗'}
+                      {hasIdentityOrResidency ? 'Identity / Residency proof ✓' : 'Identity / Residency proof missing ✗'}
                       {needsDamagePhoto && (
                         hasDamagePhoto ? ' · Damage photo ✓' : ' · Damage photo missing ✗'
                       )}
@@ -918,9 +937,9 @@ export default function ApplicationForm() {
                     </dd></div>
                 </dl>
 
-                {!hasCertificate && (
-                  <InlineAlert level="warning" title="Barangay Certificate of Residency required">
-                    You cannot submit without a Barangay Certificate of Residency.{' '}
+                {!hasIdentityOrResidency && (
+                  <InlineAlert level="warning" title="Proof of identity or residency required">
+                    You cannot submit without uploading at least one proof of identity or residency (Barangay Certificate of Residency, National ID, or Barangay ID).{' '}
                     <button
                       type="button"
                       className="font-semibold underline"
@@ -968,7 +987,7 @@ export default function ApplicationForm() {
                     <p className="text-[12px] text-slate-500">
                       Please attach all required documents in the Documents section to unlock submission (
                       {[
-                        !hasCertificate && 'Barangay Certificate of Residency',
+                        !hasIdentityOrResidency && 'Barangay Certificate / National ID / Barangay ID',
                         needsDamagePhoto && !hasDamagePhoto && 'Photo of the Damaged House',
                         needsPwdProof && !hasPwdProof && 'PWD ID or Medical Certificate'
                       ]
