@@ -17,6 +17,7 @@ import {
   getDamageExtentOptions,
   houseStatusOptions,
   PUROK_OPTIONS, isFloodPronePurok, DOCUMENT_PURPOSES,
+  IDENTITY_DOCUMENT_OPTIONS,
   DOCUMENT_CHECKLIST, DOCUMENT_PURPOSE_OPTIONS, documentPurposeLabel,
   EDITABLE_STATUSES, EMPTY_FORM, validateStep, toApiPayload, fromApiApplication
 } from '../lib/constants.js';
@@ -64,21 +65,23 @@ export default function ApplicationForm() {
   // Document upload state
   const [activeUploadPurpose, setActiveUploadPurpose] = useState(null);
   const [uploadingPurpose, setUploadingPurpose] = useState(null);
+  const [selectedIdentityPurpose, setSelectedIdentityPurpose] = useState('Barangay certificate');
   const [uploadPct, setUploadPct] = useState(null);
   const [docFeedback, setDocFeedback] = useState(null); // { level, message, purpose }
   const [busyDoc, setBusyDoc] = useState(null);
 
   const step = FORM_STEPS[stepIndex];
   const canEdit = !application || EDITABLE_STATUSES.includes(application.application_status);
-  const hasIdentityOrResidency = useMemo(
+  const identityDocs = useMemo(
     () =>
-      documents.some(
+      documents.filter(
         (doc) =>
           ['Barangay certificate', 'Valid ID', 'Proof of residence'].includes(doc.purpose) &&
           doc.status !== 'Rejected'
       ),
     [documents]
   );
+  const hasIdentityOrResidency = identityDocs.length > 0;
   const needsDamagePhoto = Boolean(form.damage_extent && form.damage_extent !== 'None');
   const hasDamagePhoto = useMemo(
     () => documents.some((doc) => doc.purpose === 'Damage photos' && doc.status !== 'Rejected'),
@@ -689,16 +692,133 @@ export default function ApplicationForm() {
                 <div>
                   <h3 className="mb-2 text-[13px] font-semibold text-navy-900">What to attach</h3>
                   <ul className="space-y-3">
+                    {/* 1. Unified Proof of Identity / Residency Card with Dropdown */}
+                    <li
+                      className={`flex flex-col gap-3 rounded-lg border p-3.5 transition-all ${
+                        hasIdentityOrResidency
+                          ? 'border-teal-200 bg-teal-50/40'
+                          : 'border-amber-200 bg-amber-50/50'
+                      }`}
+                    >
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0 flex-1">
+                          <p className="flex flex-wrap items-center gap-2 text-[13px] font-semibold text-navy-900">
+                            Proof of Identity / Residency
+                            <Badge tone={hasIdentityOrResidency ? 'success' : 'neutral'}>
+                              {hasIdentityOrResidency ? `attached (${identityDocs.length})` : 'not attached yet'}
+                            </Badge>
+                            <Badge tone={hasIdentityOrResidency ? 'success' : 'warning'}>
+                              {hasIdentityOrResidency ? 'satisfied ✓' : 'required to submit'}
+                            </Badge>
+                          </p>
+                          <p className="mt-1 text-[12px] leading-relaxed text-slate-600">
+                            Select whichever document you have available, then click upload. Any one of the options satisfies the requirement to submit.
+                          </p>
+
+                          {/* Dropdown choice */}
+                          <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                            <label htmlFor="identity-type-select" className="text-[12px] font-semibold text-slate-700">
+                              Choose document to attach:
+                            </label>
+                            <select
+                              id="identity-type-select"
+                              value={selectedIdentityPurpose}
+                              onChange={(e) => setSelectedIdentityPurpose(e.target.value)}
+                              className="rounded-md border border-line bg-white px-2.5 py-1 text-[12px] font-medium text-navy-900 shadow-sm focus:border-gov-600 focus:outline-none focus:ring-1 focus:ring-gov-600"
+                            >
+                              {IDENTITY_DOCUMENT_OPTIONS.map((opt) => (
+                                <option key={opt.value} value={opt.value}>
+                                  {opt.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+
+                        <div className="shrink-0 sm:pt-1">
+                          <Button
+                            size="sm"
+                            variant={hasIdentityOrResidency ? 'secondary' : undefined}
+                            disabled={!application || uploadPct !== null || saving}
+                            onClick={() => triggerDirectUpload(selectedIdentityPurpose)}
+                          >
+                            {uploadingPurpose === selectedIdentityPurpose && uploadPct !== null
+                              ? 'Uploading…'
+                              : hasIdentityOrResidency
+                                ? 'Upload another'
+                                : 'Upload document'}
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Progress bar if uploading an identity document */}
+                      {['Barangay certificate', 'Valid ID', 'Proof of residence'].includes(uploadingPurpose) && uploadPct !== null && (
+                        <div className="pt-1">
+                          <div
+                            className="h-2 w-full overflow-hidden rounded-full bg-slate-200"
+                            role="progressbar"
+                            aria-valuenow={uploadPct}
+                            aria-valuemin={0}
+                            aria-valuemax={100}
+                          >
+                            <div
+                              className="h-2 rounded-full bg-gov-700 transition-all duration-150"
+                              style={{ width: `${uploadPct}%` }}
+                            />
+                          </div>
+                          <p className="mt-1 text-[11px] font-medium text-gov-700">Uploading… {uploadPct}%</p>
+                        </div>
+                      )}
+
+                      {/* Attached identity documents */}
+                      {identityDocs.length > 0 && (
+                        <ul className="divide-y divide-teal-100 rounded-md border border-teal-200/80 bg-white/80 px-3 py-1">
+                          {identityDocs.map((doc) => (
+                            <li key={doc.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-[12px]">
+                              <div className="flex flex-wrap items-center gap-2 min-w-0">
+                                <span className="truncate max-w-[240px] sm:max-w-md font-medium text-navy-900">
+                                  📎 {doc.file_name} <span className="font-normal text-slate-500">({formatBytes(doc.size_bytes)})</span>
+                                </span>
+                                <Badge tone="info">{documentPurposeLabel(doc.purpose)}</Badge>
+                                <Badge tone={doc.status === 'Accepted' ? 'success' : doc.status === 'Rejected' ? 'danger' : 'neutral'}>
+                                  {doc.status}
+                                </Badge>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="secondary"
+                                  className="h-7 px-2.5 text-[11px]"
+                                  onClick={() => openDocument(doc)}
+                                  disabled={busyDoc === doc.id}
+                                >
+                                  View
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="danger"
+                                  className="h-7 px-2.5 text-[11px]"
+                                  onClick={() => removeDocument(doc)}
+                                  disabled={busyDoc === doc.id}
+                                >
+                                  {busyDoc === doc.id ? 'Removing…' : 'Remove'}
+                                </Button>
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </li>
+
+                    {/* 2. Other supporting document cards (Damage photo, PWD proof) */}
                     {DOCUMENT_CHECKLIST.map((item) => {
                       const attached = documents.filter(
                         (doc) => doc.purpose === item.purpose && doc.status !== 'Rejected'
                       );
                       const done = attached.length > 0;
-                      const isIdentityItem = item.category === 'identity_residency';
-                      const isRequired = isIdentityItem
-                        ? !hasIdentityOrResidency
-                        : (item.category === 'damage' && needsDamagePhoto) ||
-                          (item.category === 'pwd' && needsPwdProof);
+                      const isRequired =
+                        (item.category === 'damage' && needsDamagePhoto) ||
+                        (item.category === 'pwd' && needsPwdProof);
                       const isPendingRequired = isRequired && !done;
                       const isUploading = uploadingPurpose === item.purpose;
 
@@ -720,19 +840,9 @@ export default function ApplicationForm() {
                                 <Badge tone={done ? 'success' : 'neutral'}>
                                   {done ? `attached (${attached.length})` : 'not attached yet'}
                                 </Badge>
-                                {isIdentityItem ? (
-                                  hasIdentityOrResidency ? (
-                                    <Badge tone={done ? 'success' : 'neutral'}>
-                                      {done ? 'satisfied ✓' : 'optional (ID satisfied ✓)'}
-                                    </Badge>
-                                  ) : (
-                                    <Badge tone="warning">1 required (choose any option)</Badge>
-                                  )
-                                ) : (
-                                  <Badge tone={isRequired ? 'warning' : 'info'}>
-                                    {isRequired ? 'required to submit' : 'optional'}
-                                  </Badge>
-                                )}
+                                <Badge tone={isRequired ? 'warning' : 'info'}>
+                                  {isRequired ? 'required to submit' : 'optional'}
+                                </Badge>
                               </p>
                               <p className="mt-1 text-[12px] leading-relaxed text-slate-600">{item.why}</p>
                             </div>
@@ -748,7 +858,7 @@ export default function ApplicationForm() {
                             </div>
                           </div>
 
-                          {/* Progress bar when this item is uploading */}
+                          {/* Progress bar */}
                           {isUploading && uploadPct !== null && (
                             <div className="pt-1">
                               <div

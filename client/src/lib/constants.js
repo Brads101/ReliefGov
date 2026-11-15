@@ -199,38 +199,31 @@ export const DOCUMENT_PURPOSE_OPTIONS = DOCUMENT_PURPOSES.map((purpose) => ({
  * `purpose` values must stay inside DOCUMENT_PURPOSES (DB check constraint,
  * migration 0002).
  */
-export const DOCUMENT_CHECKLIST = [
+export const IDENTITY_DOCUMENT_OPTIONS = [
+  { value: 'Barangay certificate', label: 'Barangay Certificate of Residency' },
+  { value: 'Valid ID', label: 'National ID' },
+  { value: 'Proof of residence', label: 'Barangay ID' }
+];
+
+/**
+ * Other supporting documents (Damage photo, PWD proof).
+ */
+export const OTHER_DOCUMENT_CHECKLIST = [
   {
-    purpose: 'Barangay certificate',
-    title: 'Barangay Certificate of Residency',
-    category: 'identity_residency',
-    why: 'Option 1 (Proof of residency) — attach this OR your National ID OR your Barangay ID. Any one of the three satisfies the identity requirement to submit.'
-  },
-  {
-    purpose: 'Valid ID',
-    title: 'National ID',
-    category: 'identity_residency',
-    why: 'Option 2 (National identification) — attach your National ID (PhilID / ePhilID) OR your Barangay Certificate OR your Barangay ID.'
-  },
-  {
-    purpose: 'Proof of residence',
-    title: 'Barangay ID',
-    category: 'identity_residency',
-    why: 'Option 3 (Barangay identification) — attach your Barangay ID OR your Barangay Certificate OR your National ID.'
+    purpose: 'Damage photos',
+    title: 'Photo of the damaged house',
+    category: 'damage',
+    why: 'Required when property damage is claimed (Partially, Heavily Flooded, or Totally) — provides photographic evidence of the damage to ensure objective validation.'
   },
   {
     purpose: 'Medical record',
     title: 'PWD ID or Medical Certificate',
     category: 'pwd',
     why: 'Required when disability status (PWD) is reported in the household — provides official proof to ensure fair and validated vulnerability scoring.'
-  },
-  {
-    purpose: 'Damage photos',
-    title: 'Photo of the damaged house',
-    category: 'damage',
-    why: 'Required when property damage is claimed (Partially, Heavily Flooded, or Totally) — provides photographic evidence of the damage to ensure objective validation.'
   }
 ];
+
+export const DOCUMENT_CHECKLIST = OTHER_DOCUMENT_CHECKLIST;
 
 /* ------------------------------------------------------------------ *
  * Data Validation & Duplicate Detection (Batch 4).
