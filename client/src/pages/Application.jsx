@@ -330,7 +330,7 @@ export default function Application() {
           >
             {bundle.documents.length === 0 ? (
               <p className="text-[13px] text-slate-500">
-                No documents attached yet. A Barangay Certificate of Residency is required before submission.
+                No documents attached yet. Proof of identity or residency (Barangay Certificate of Residency, National ID, or Barangay ID) is required before submission.
               </p>
             ) : (
               <ul className="divide-y divide-line">
