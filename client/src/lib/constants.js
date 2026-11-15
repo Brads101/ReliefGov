@@ -175,8 +175,8 @@ export const DOCUMENT_PURPOSES = [
 export const DOCUMENT_PURPOSE_LABELS = {
   'Barangay certificate': 'Barangay Certificate of Residency',
   'Damage photos': 'Photo of the damaged house',
-  'Valid ID': 'National ID or Barangay ID',
-  'Proof of residence': 'Proof of residence',
+  'Valid ID': 'National ID',
+  'Proof of residence': 'Barangay ID',
   'Medical record': 'PWD ID or Medical Certificate',
   'Other': 'Other'
 };
@@ -204,13 +204,19 @@ export const DOCUMENT_CHECKLIST = [
     purpose: 'Barangay certificate',
     title: 'Barangay Certificate of Residency',
     category: 'identity_residency',
-    why: 'Proof of residency option — you can attach this OR your National ID / Barangay ID to verify your residency in Barangay Tambacan.'
+    why: 'Option 1 (Proof of residency) — attach this OR your National ID OR your Barangay ID. Any one of the three satisfies the identity requirement to submit.'
   },
   {
     purpose: 'Valid ID',
-    title: 'National ID or Barangay ID',
+    title: 'National ID',
     category: 'identity_residency',
-    why: 'Proof of identity & residency option — you can attach this OR your Barangay Certificate of Residency to verify your identity.'
+    why: 'Option 2 (National identification) — attach your National ID (PhilID / ePhilID) OR your Barangay Certificate OR your Barangay ID.'
+  },
+  {
+    purpose: 'Proof of residence',
+    title: 'Barangay ID',
+    category: 'identity_residency',
+    why: 'Option 3 (Barangay identification) — attach your Barangay ID OR your Barangay Certificate OR your National ID.'
   },
   {
     purpose: 'Medical record',

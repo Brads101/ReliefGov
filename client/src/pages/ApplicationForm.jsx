@@ -652,11 +652,24 @@ export default function ApplicationForm() {
             {step.key === 'documents' && (
               <div className="space-y-5">
                 <p className="text-[13px] leading-relaxed text-slate-600">
-                  Attach at least one proof of identity or residency (<strong>Barangay Certificate of Residency</strong>, <strong>National ID</strong>, or <strong>Barangay ID</strong>) — either one satisfies the requirement to submit.
+                  Attach at least one proof of identity or residency (<strong>Barangay Certificate of Residency</strong>, <strong>National ID</strong>, or <strong>Barangay ID</strong>) — any one of the three satisfies the identity requirement to submit.
                   {needsDamagePhoto && ' Because you reported property damage, at least one photo of the damaged house is also required.'}
                   {needsPwdProof && ' Because you reported a PWD in the household, a PWD ID or Medical Certificate is also required.'}
                   {' '}Files are accepted as PDF, JPEG, or PNG up to 5 MB each.
                 </p>
+
+                {/* Prominent reminder that submission cannot proceed without an ID/residency document */}
+                <div className="rounded-lg border border-amber-300 bg-amber-50/80 p-3.5 text-[13px] text-amber-950">
+                  <div className="flex items-start gap-2.5">
+                    <span className="text-base leading-none">⚠️</span>
+                    <div>
+                      <strong className="font-semibold">Important Submission Requirement:</strong>
+                      <p className="mt-0.5 leading-relaxed">
+                        You <strong>cannot submit</strong> your application without attaching at least one valid ID or residency document from the options below (<strong>Barangay Certificate of Residency</strong>, <strong>National ID</strong>, or <strong>Barangay ID</strong>). Please attach whichever option you currently have.
+                      </p>
+                    </div>
+                  </div>
+                </div>
 
                 {!application && (
                   <InlineAlert level="warning">
@@ -720,7 +733,7 @@ export default function ApplicationForm() {
                                       {done ? 'satisfied ✓' : 'optional (ID satisfied ✓)'}
                                     </Badge>
                                   ) : (
-                                    <Badge tone="warning">1 required (choose either one)</Badge>
+                                    <Badge tone="warning">1 required (choose any option)</Badge>
                                   )
                                 ) : (
                                   <Badge tone={isRequired ? 'warning' : 'info'}>
@@ -807,8 +820,8 @@ export default function ApplicationForm() {
                 {(!hasIdentityOrResidency || (needsDamagePhoto && !hasDamagePhoto) || (needsPwdProof && !hasPwdProof)) && (
                   <div className="space-y-3">
                     {!hasIdentityOrResidency && (
-                      <InlineAlert level="warning" title="Proof of identity or residency missing">
-                        Upload either your Barangay Certificate of Residency, National ID, or Barangay ID before submitting your application.
+                      <InlineAlert level="warning" title="Proof of identity or residency required to submit">
+                        You cannot submit your application without attaching at least one valid ID or residency proof: Barangay Certificate of Residency, National ID, or Barangay ID.
                       </InlineAlert>
                     )}
                     {needsDamagePhoto && !hasDamagePhoto && (
