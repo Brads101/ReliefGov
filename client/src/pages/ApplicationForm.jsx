@@ -766,9 +766,14 @@ export default function ApplicationForm() {
                             <ul className="divide-y divide-teal-100 rounded-md border border-teal-200/80 bg-white/80 px-3 py-1">
                               {attached.map((doc) => (
                                 <li key={doc.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-[12px]">
-                                  <span className="truncate max-w-[260px] sm:max-w-md font-medium text-navy-900">
-                                    📎 {doc.file_name} <span className="font-normal text-slate-500">({formatBytes(doc.size_bytes)})</span>
-                                  </span>
+                                  <div className="flex flex-wrap items-center gap-2 min-w-0">
+                                    <span className="truncate max-w-[240px] sm:max-w-md font-medium text-navy-900">
+                                      📎 {doc.file_name} <span className="font-normal text-slate-500">({formatBytes(doc.size_bytes)})</span>
+                                    </span>
+                                    <Badge tone={doc.status === 'Accepted' ? 'success' : doc.status === 'Rejected' ? 'danger' : 'neutral'}>
+                                      {doc.status}
+                                    </Badge>
+                                  </div>
                                   <div className="flex items-center gap-2">
                                     <Button
                                       size="sm"
@@ -799,68 +804,25 @@ export default function ApplicationForm() {
                   </ul>
                 </div>
 
-                <div>
-                  <h3 className="mb-2 text-[13px] font-semibold text-navy-900">
-                    Attached documents ({documents.length})
-                  </h3>
-                  {documents.length === 0 ? (
-                    <p className="text-[13px] text-slate-500">No documents attached yet.</p>
-                  ) : (
-                    <ul className="divide-y divide-line rounded-lg border border-line">
-                      {documents.map((doc) => (
-                        <li key={doc.id} className="flex flex-col gap-2 p-3 sm:flex-row sm:items-center sm:justify-between">
-                          <div className="min-w-0">
-                            <p className="truncate text-[13px] font-medium text-navy-900">{doc.file_name}</p>
-                            <p className="flex flex-wrap items-center gap-2 text-[12px] text-slate-500">
-                              {documentPurposeLabel(doc.purpose)} · {formatBytes(doc.size_bytes)}
-                              <Badge tone={doc.status === 'Accepted' ? 'success' : doc.status === 'Rejected' ? 'danger' : 'neutral'}>
-                                {doc.status}
-                              </Badge>
-                              {['Barangay certificate', 'Valid ID', 'Proof of residence'].includes(doc.purpose) && (
-                                <Badge tone="success">Proof of Identity / Residency</Badge>
-                              )}
-                              {doc.purpose === 'Damage photos' && (
-                                <Badge tone="info">Damage photo</Badge>
-                              )}
-                              {doc.purpose === 'Medical record' && (
-                                <Badge tone="info">PWD proof</Badge>
-                              )}
-                            </p>
-                          </div>
-                          <div className="flex shrink-0 gap-2">
-                            <Button size="sm" variant="secondary" onClick={() => openDocument(doc)} disabled={busyDoc === doc.id}>
-                              View
-                            </Button>
-                            <Button size="sm" variant="danger" onClick={() => removeDocument(doc)} disabled={busyDoc === doc.id}>
-                              Remove
-                            </Button>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                  {!hasIdentityOrResidency && (
-                    <div className="mt-3">
+                {(!hasIdentityOrResidency || (needsDamagePhoto && !hasDamagePhoto) || (needsPwdProof && !hasPwdProof)) && (
+                  <div className="space-y-3">
+                    {!hasIdentityOrResidency && (
                       <InlineAlert level="warning" title="Proof of identity or residency missing">
                         Upload either your Barangay Certificate of Residency, National ID, or Barangay ID before submitting your application.
                       </InlineAlert>
-                    </div>
-                  )}
-                  {needsDamagePhoto && !hasDamagePhoto && (
-                    <div className="mt-3">
+                    )}
+                    {needsDamagePhoto && !hasDamagePhoto && (
                       <InlineAlert level="warning" title="Photo of damaged house missing">
                         You reported property damage ({damageExtentLabel(form.damage_extent)}). Please upload at least one photo of the damaged house before submitting.
                       </InlineAlert>
-                    </div>
-                  )}
-                  {needsPwdProof && !hasPwdProof && (
-                    <div className="mt-3">
+                    )}
+                    {needsPwdProof && !hasPwdProof && (
                       <InlineAlert level="warning" title="PWD ID or Medical Certificate missing">
                         You indicated a PWD in the household. Please upload a PWD ID or Medical Certificate before submitting.
                       </InlineAlert>
-                    </div>
-                  )}
-                </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
