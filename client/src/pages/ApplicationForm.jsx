@@ -922,26 +922,6 @@ export default function ApplicationForm() {
                     })}
                   </ul>
                 </div>
-
-                {(!hasIdentityOrResidency || (needsDamagePhoto && !hasDamagePhoto) || (needsPwdProof && !hasPwdProof)) && (
-                  <div className="space-y-3">
-                    {!hasIdentityOrResidency && (
-                      <InlineAlert level="warning" title="Proof of identity or residency required to submit">
-                        You cannot submit your application without attaching at least one valid ID or residency proof: Barangay Certificate of Residency, National ID, or Barangay ID.
-                      </InlineAlert>
-                    )}
-                    {needsDamagePhoto && !hasDamagePhoto && (
-                      <InlineAlert level="warning" title="Photo of damaged house missing">
-                        You reported property damage ({damageExtentLabel(form.damage_extent)}). Please upload at least one photo of the damaged house before submitting.
-                      </InlineAlert>
-                    )}
-                    {needsPwdProof && !hasPwdProof && (
-                      <InlineAlert level="warning" title="PWD ID missing">
-                        You indicated a PWD in the household. Please upload a PWD ID before submitting.
-                      </InlineAlert>
-                    )}
-                  </div>
-                )}
               </div>
             )}
 
