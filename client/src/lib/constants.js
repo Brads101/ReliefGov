@@ -135,6 +135,34 @@ export function isFloodPronePurok(purok) {
   return /purok\s*0?[1-4](?:[a-z\-]|$)/i.test(p);
 }
 
+export const DAMAGE_EXTENT_HIGH_RISK_OPTIONS = [
+  { value: 'Major', label: 'HEAVILY FLOODED' },
+  { value: 'Total', label: 'TOTALLY' }
+];
+
+export const DAMAGE_EXTENT_LOW_RISK_OPTIONS = [
+  { value: 'None', label: 'FLOODED' },
+  { value: 'Minor', label: 'PARTIALLY' }
+];
+
+/**
+ * Returns damage extent options based on Purok hazard zoning (Approach 1):
+ * - Puroks 1–4 (Coastal/Riverbank): HEAVILY FLOODED, TOTALLY
+ * - Puroks 5–8 (Inland): FLOODED, PARTIALLY
+ * - Other/unspecified: all options
+ */
+export function getDamageExtentOptions(purok) {
+  if (!purok) return DAMAGE_EXTENT_OPTIONS;
+  if (isFloodPronePurok(purok)) {
+    return DAMAGE_EXTENT_HIGH_RISK_OPTIONS;
+  }
+  const p = String(purok).trim().toLowerCase();
+  if (/purok\s*0?[5-8](?:[a-z\-]|$)/i.test(p)) {
+    return DAMAGE_EXTENT_LOW_RISK_OPTIONS;
+  }
+  return DAMAGE_EXTENT_OPTIONS;
+}
+
 export const DOCUMENT_PURPOSES = [
   'Barangay certificate',
   'Valid ID',
@@ -464,7 +492,14 @@ export function validateStep(stepKey, form) {
     const description = text(form.incident_description);
     if (!description) set('incident_description', 'Please describe what happened.');
     else if (description.length < 10) set('incident_description', 'Please write at least 10 characters.');
-    if (!text(form.damage_extent)) set('damage_extent', 'Please select the extent of property damage.');
+    if (!text(form.damage_extent)) {
+      set('damage_extent', 'Please select the extent of property damage.');
+    } else {
+      const allowed = getDamageExtentOptions(form.purok).map((o) => o.value);
+      if (!allowed.includes(form.damage_extent)) {
+        set('damage_extent', 'Selected damage extent is not valid for your purok.');
+      }
+    }
   }
 
   return errors;

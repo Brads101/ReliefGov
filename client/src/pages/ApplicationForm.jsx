@@ -14,6 +14,7 @@ import {
 import {
   FORM_STEPS, SEX_OPTIONS, CIVIL_STATUS_OPTIONS,
   INCIDENT_TYPE_OPTIONS, incidentTypeOptions, DAMAGE_EXTENT_OPTIONS, damageExtentLabel,
+  getDamageExtentOptions,
   houseStatusOptions,
   PUROK_OPTIONS, isFloodPronePurok, DOCUMENT_PURPOSES, REQUIRED_DOCUMENT_PURPOSE,
   DOCUMENT_CHECKLIST, DOCUMENT_PURPOSE_OPTIONS, documentPurposeLabel,
@@ -111,7 +112,16 @@ export default function ApplicationForm() {
 
   const set = (field) => (event) => {
     const value = event.target.value;
-    setForm((prev) => ({ ...prev, [field]: value }));
+    setForm((prev) => {
+      const next = { ...prev, [field]: value };
+      if (field === 'purok') {
+        const allowed = getDamageExtentOptions(value).map((opt) => opt.value);
+        if (next.damage_extent && !allowed.includes(next.damage_extent)) {
+          next.damage_extent = '';
+        }
+      }
+      return next;
+    });
     setErrors((prev) => {
       if (!prev[field]) return prev;
       const next = { ...prev };
@@ -644,13 +654,25 @@ export default function ApplicationForm() {
                     />
                   </Field>
                 </div>
-                <Field label="Extent of property damage" htmlFor="damage_extent" required error={errors.damage_extent}>
+                <Field
+                  label="Extent of property damage"
+                  htmlFor="damage_extent"
+                  required
+                  error={errors.damage_extent}
+                  hint={
+                    isFloodPronePurok(form.purok)
+                      ? 'Showing flood hazard options for coastal / riverbank zone (Puroks 1–4)'
+                      : form.purok && /purok\s*0?[5-8]/i.test(form.purok)
+                      ? 'Showing flood hazard options for inland zone (Puroks 5–8)'
+                      : undefined
+                  }
+                >
                   <Select
                     name="damage_extent"
                     value={form.damage_extent}
                     onChange={set('damage_extent')}
                     placeholder="Select…"
-                    options={DAMAGE_EXTENT_OPTIONS}
+                    options={getDamageExtentOptions(form.purok)}
                   />
                 </Field>
               </div>
