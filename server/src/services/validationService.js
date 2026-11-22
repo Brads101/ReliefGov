@@ -2,6 +2,7 @@ import { supabaseAdmin } from '../lib/supabase.js';
 import { badRequest, forbidden, notFound, HttpError, unavailable } from '../lib/errors.js';
 import { ROLES } from './authService.js';
 import { scorePair } from '../lib/duplicates.js';
+import { parseFingerprintFromPath, comparePhotoFingerprints } from '../lib/photoHash.js';
 import { notify } from './notificationService.js';
 
 /**
@@ -417,6 +418,132 @@ export async function decideFlag(user, flagId, input) {
 /* ------------------------------------------------------------------ */
 
 /**
+ * Re-checks OPEN ('Flagged') photo-duplicate flags touching `beneficiaryId`.
+ * When an applicant deletes or replaces a flagged damage photo with a new
+ * original photo:
+ *  - If the pair still has a photo match -> keep the flag untouched.
+ *  - If the photo no longer matches -> re-evaluate text-only fields via
+ *    scorePair():
+ *      • If text fields alone do NOT trigger a flag -> remove the stale flag.
+ *      • If text fields STILL trigger a flag -> strip the photo-match evidence
+ *        and downgrade similarity_score / confidence to the text-only result.
+ */
+export async function reconcilePhotoDuplicateFlags(beneficiaryId) {
+  if (!beneficiaryId) return { removed: 0, updated: 0 };
+  try {
+    const { data: openFlags, error } = await admin()
+      .from('validation_results')
+      .select(FLAG_COLUMNS)
+      .eq('status', 'Flagged')
+      .or(`beneficiary_id.eq.${beneficiaryId},candidate_id.eq.${beneficiaryId}`);
+    if (error || !openFlags?.length) return { removed: 0, updated: 0 };
+
+    const photoFlags = openFlags.filter(
+      (f) => f.match_details?.matches?.damage_photo || f.match_details?.photo_match
+    );
+    if (photoFlags.length === 0) return { removed: 0, updated: 0 };
+
+    const allIds = new Set();
+    for (const f of photoFlags) {
+      if (f.beneficiary_id) allIds.add(f.beneficiary_id);
+      if (f.candidate_id) allIds.add(f.candidate_id);
+    }
+    const idList = Array.from(allIds);
+
+    const [{ data: damageDocs }, { data: records }] = await Promise.all([
+      admin()
+        .from('documents')
+        .select('beneficiary_id, storage_path, file_name')
+        .eq('purpose', 'Damage photos')
+        .neq('status', 'Rejected')
+        .in('beneficiary_id', idList),
+      admin()
+        .from('beneficiaries')
+        .select('id, beneficiary_number, first_name, middle_name, last_name, date_of_birth, mobile_number, purok, household_size')
+        .in('id', idList)
+    ]);
+
+    const photoMap = new Map();
+    for (const doc of damageDocs || []) {
+      const fp = parseFingerprintFromPath(doc.storage_path);
+      if (!fp) continue;
+      if (!photoMap.has(doc.beneficiary_id)) photoMap.set(doc.beneficiary_id, []);
+      photoMap.get(doc.beneficiary_id).push(fp);
+    }
+    const recordMap = new Map((records || []).map((r) => [r.id, r]));
+
+    let removed = 0;
+    let updated = 0;
+    const touched = new Set();
+
+    for (const flag of photoFlags) {
+      const aPhotos = photoMap.get(flag.beneficiary_id) || [];
+      const bPhotos = photoMap.get(flag.candidate_id) || [];
+      let stillMatchesPhoto = false;
+      for (const fpA of aPhotos) {
+        for (const fpB of bPhotos) {
+          if (comparePhotoFingerprints(fpA, fpB).matched) {
+            stillMatchesPhoto = true;
+            break;
+          }
+        }
+        if (stillMatchesPhoto) break;
+      }
+      if (stillMatchesPhoto) continue;
+
+      // Photo no longer matches — re-evaluate text-only duplicate criteria.
+      const recA = recordMap.get(flag.beneficiary_id);
+      const recB = recordMap.get(flag.candidate_id);
+      const textResult = recA && recB ? scorePair(recA, recB) : { flagged: false };
+
+      if (!textResult.flagged) {
+        const { error: delErr } = await admin()
+          .from('validation_results')
+          .delete()
+          .eq('id', flag.id)
+          .eq('status', 'Flagged');
+        if (!delErr) {
+          removed += 1;
+          touched.add(flag.beneficiary_id);
+          if (flag.candidate_id) touched.add(flag.candidate_id);
+        }
+      } else {
+        const { error: updErr } = await admin()
+          .from('validation_results')
+          .update({
+            similarity_score: textResult.score,
+            confidence: textResult.confidence,
+            match_details: {
+              name_similarity: textResult.nameSimilarity,
+              matches: textResult.matches,
+              evidence: textResult.evidence,
+              flagged_name: fullName(recA),
+              flagged_reference: recA.beneficiary_number,
+              candidate_name: fullName(recB),
+              candidate_reference: recB.beneficiary_number
+            }
+          })
+          .eq('id', flag.id)
+          .eq('status', 'Flagged');
+        if (!updErr) {
+          updated += 1;
+          touched.add(flag.beneficiary_id);
+          if (flag.candidate_id) touched.add(flag.candidate_id);
+        }
+      }
+    }
+
+    for (const id of touched) {
+      await applyFlagState(id);
+    }
+    return { removed, updated };
+  } catch (err) {
+    console.warn('[ReliefGov] reconcilePhotoDuplicateFlags failed:', err.message);
+    return { removed: 0, updated: 0 };
+  }
+}
+
+/**
  * Compares a submitted application against every other submitted Tambacan
  * record it has not been compared to before, and files a flag for every
  * pair that meets the confidence rules in lib/duplicates.js.
@@ -426,6 +553,9 @@ export async function decideFlag(user, flagId, input) {
  */
 export async function scanForDuplicates(application) {
   if (!application?.id) return { created: 0, compared: 0 };
+
+  // Clear or downgrade any open photo-duplicate flags whose photo was replaced.
+  await reconcilePhotoDuplicateFlags(application.id);
 
   const { data: candidates, error: candError } = await admin()
     .from('beneficiaries')
@@ -450,6 +580,27 @@ export async function scanForDuplicates(application) {
   }
   linked.add(application.id);
 
+  // Load damage-photo fingerprints for the target application and all candidates
+  // in a single query (fingerprints are embedded in storage_path; zero DB changes).
+  const candidateIds = (candidates || []).map((c) => c.id);
+  const photoMap = new Map();
+  if (candidateIds.length > 0) {
+    const { data: damageDocs } = await admin()
+      .from('documents')
+      .select('beneficiary_id, storage_path, file_name')
+      .eq('purpose', 'Damage photos')
+      .neq('status', 'Rejected')
+      .in('beneficiary_id', [application.id, ...candidateIds]);
+    for (const doc of damageDocs || []) {
+      const fp = parseFingerprintFromPath(doc.storage_path);
+      if (!fp) continue;
+      if (!photoMap.has(doc.beneficiary_id)) photoMap.set(doc.beneficiary_id, []);
+      photoMap.get(doc.beneficiary_id).push({ fp, file_name: doc.file_name });
+    }
+  }
+  const appPhotos = photoMap.get(application.id) || [];
+  const CONF_RANK = { low: 1, medium: 2, high: 3 };
+
   const rows = [];
   let compared = 0;
   for (const candidate of candidates || []) {
@@ -457,17 +608,59 @@ export async function scanForDuplicates(application) {
     if (candidate.user_id && candidate.user_id === application.user_id) continue;
     compared += 1;
     const result = scorePair(application, candidate);
-    if (!result.flagged) continue;
+
+    // Check if any damage photo uploaded by `application` matches `candidate`.
+    let bestPhotoMatch = null;
+    const candPhotos = photoMap.get(candidate.id) || [];
+    for (const a of appPhotos) {
+      for (const b of candPhotos) {
+        const cmp = comparePhotoFingerprints(a.fp, b.fp);
+        if (cmp.matched && (!bestPhotoMatch || cmp.similarity > bestPhotoMatch.similarity)) {
+          bestPhotoMatch = {
+            ...cmp,
+            flagged_file: a.file_name,
+            candidate_file: b.file_name
+          };
+        }
+      }
+    }
+
+    if (!result.flagged && !bestPhotoMatch) continue;
+
+    const evidence = [...(result.evidence || [])];
+    const matches = { ...(result.matches || {}) };
+    let similarityScore = result.score || 0;
+    let confidence = result.confidence || 'low';
+
+    if (bestPhotoMatch) {
+      evidence.unshift(bestPhotoMatch.evidence);
+      matches.damage_photo = true;
+      similarityScore = Math.max(similarityScore, bestPhotoMatch.similarity);
+      if ((CONF_RANK[bestPhotoMatch.confidence] || 0) > (CONF_RANK[confidence] || 0)) {
+        confidence = bestPhotoMatch.confidence;
+      }
+    }
+
     rows.push({
       beneficiary_id: application.id,
       candidate_id: candidate.id,
-      similarity_score: result.score,
+      similarity_score: similarityScore,
       status: 'Flagged',
-      confidence: result.confidence,
+      confidence,
       match_details: {
         name_similarity: result.nameSimilarity,
-        matches: result.matches,
-        evidence: result.evidence,
+        matches,
+        evidence,
+        ...(bestPhotoMatch
+          ? {
+              photo_match: {
+                exact: bestPhotoMatch.exact,
+                similarity: bestPhotoMatch.similarity,
+                flagged_file: bestPhotoMatch.flagged_file,
+                candidate_file: bestPhotoMatch.candidate_file
+              }
+            }
+          : {}),
         flagged_name: fullName(application),
         flagged_reference: application.beneficiary_number,
         candidate_name: fullName(candidate),

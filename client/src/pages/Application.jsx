@@ -225,9 +225,6 @@ export default function Application() {
                           {formatDate(entry.created_at)}
                         </span>
                       </div>
-                      <p className="mt-1 text-[13px] text-navy-800">
-                        Changed by {ROLE_LABEL[entry.actor_role] || entry.actor_role || 'System'}
-                      </p>
                       {entry.reason && (
                         <p className="mt-1 text-[13px] italic text-slate-600">“{entry.reason}”</p>
                       )}

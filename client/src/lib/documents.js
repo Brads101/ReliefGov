@@ -71,8 +71,97 @@ export function fileToDataUrl(file) {
   });
 }
 
+const MAX_IMAGE_DIM = 1600;
+const JPEG_QUALITY = 0.8;
+
+/**
+ * Computes a 64-bit perceptual difference hash (dHash, 16 hex chars) from a
+ * loaded HTMLImageElement using a 9x8 grayscale canvas. Resilient to resizing,
+ * re-compression, screenshots, and minor cropping.
+ */
+function computeDHash(img) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 9;
+  canvas.height = 8;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  ctx.drawImage(img, 0, 0, 9, 8);
+  const { data } = ctx.getImageData(0, 0, 9, 8);
+
+  const gray = new Float32Array(72);
+  for (let i = 0; i < 72; i += 1) {
+    const idx = i * 4;
+    gray[i] = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
+  }
+
+  let hex = '';
+  for (let row = 0; row < 8; row += 1) {
+    let byte = 0;
+    for (let col = 0; col < 8; col += 1) {
+      const left = gray[row * 9 + col];
+      const right = gray[row * 9 + col + 1];
+      byte = (byte << 1) | (left > right ? 1 : 0);
+    }
+    hex += byte.toString(16).padStart(2, '0');
+  }
+  return hex;
+}
+
+/**
+ * Compresses JPEG/PNG photos client-side via HTML5 Canvas (max 1600px, 80% JPEG)
+ * and computes their 64-bit perceptual hash for duplicate photo detection.
+ */
+function processImageForUpload(file, mime) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = async () => {
+      try {
+        const phash = computeDHash(img);
+
+        let { naturalWidth: w, naturalHeight: h } = img;
+        if (w > MAX_IMAGE_DIM || h > MAX_IMAGE_DIM) {
+          const scale = MAX_IMAGE_DIM / Math.max(w, h);
+          w = Math.max(1, Math.round(w * scale));
+          h = Math.max(1, Math.round(h * scale));
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        const compressedUrl = canvas.toDataURL('image/jpeg', JPEG_QUALITY);
+
+        // Estimate compressed byte size from base64 length.
+        const compressedB64 = compressedUrl.slice(compressedUrl.indexOf(',') + 1);
+        const compressedBytes = Math.floor((compressedB64.length * 3) / 4);
+
+        // Use compressed JPEG whenever it shrinks the file or brings an oversized photo under 5 MB.
+        if (compressedBytes < file.size || file.size > MAX_FILE_BYTES) {
+          resolve({ data: compressedUrl, sizeBytes: compressedBytes, phash });
+        } else {
+          const raw = await fileToDataUrl(file);
+          const base64 = raw.slice(raw.indexOf(',') + 1);
+          resolve({ data: `data:${mime};base64,${base64}`, sizeBytes: file.size, phash });
+        }
+      } catch (err) {
+        reject(err);
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new ApiError(400, 'Could not decode the selected image. Please try another JPG or PNG file.'));
+    };
+    img.src = url;
+  });
+}
+
 /**
  * Uploads one document to the server.
+ * Images are automatically compressed client-side and perceptually hashed (dHash)
+ * to improve upload speed on mobile data and detect duplicate damage photos.
  * @param {object} options
  * @param {File} options.file
  * @param {string} options.beneficiaryId — the caller's own application record id
@@ -88,19 +177,33 @@ export async function uploadDocument({ file, beneficiaryId, purpose, onProgress 
         'save or convert it as JPG first, then upload it again.'
     );
   }
-  if (file.size > MAX_FILE_BYTES) {
-    throw new ApiError(400, 'The file is too large. Maximum size is 5 MB.');
+
+  let data;
+  let phash = null;
+
+  if (mime === 'image/jpeg' || mime === 'image/png') {
+    const processed = await processImageForUpload(file, mime);
+    if (processed.sizeBytes > MAX_FILE_BYTES) {
+      throw new ApiError(400, 'The image is still too large after compression. Maximum size is 5 MB.');
+    }
+    data = processed.data;
+    phash = processed.phash;
+  } else {
+    if (file.size > MAX_FILE_BYTES) {
+      throw new ApiError(400, 'The file is too large. Maximum size is 5 MB.');
+    }
+    const raw = await fileToDataUrl(file);
+    // Re-declare the type from the sniffed bytes (the browser's prefix may be
+    // `image/jfif` or `application/octet-stream`, which the server rejects).
+    const base64 = raw.slice(raw.indexOf(',') + 1);
+    data = `data:${mime};base64,${base64}`;
   }
 
-  const raw = await fileToDataUrl(file);
-  // Re-declare the type from the sniffed bytes (the browser's prefix may be
-  // `image/jfif` or `application/octet-stream`, which the server rejects).
-  const base64 = raw.slice(raw.indexOf(',') + 1);
-  const data = `data:${mime};base64,${base64}`;
   const body = JSON.stringify({
     file: { name: file.name, data },
     beneficiary_id: beneficiaryId,
-    purpose
+    purpose,
+    ...(phash ? { phash } : {})
   });
 
   return new Promise((resolve, reject) => {
@@ -126,7 +229,12 @@ export async function uploadDocument({ file, beneficiaryId, purpose, onProgress 
       }
       if (xhr.status >= 200 && xhr.status < 300) {
         if (onProgress) onProgress(100);
-        resolve(payload?.document);
+        const doc = payload?.document || null;
+        if (doc && payload?.duplicate_photo_warning) {
+          resolve({ ...doc, duplicate_photo_warning: payload.duplicate_photo_warning });
+        } else {
+          resolve(doc);
+        }
       } else {
         const err = payload?.error || {};
         reject(new ApiError(xhr.status, err.message || `Upload failed (${xhr.status}).`, err.details));

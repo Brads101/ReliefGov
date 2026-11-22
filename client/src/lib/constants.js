@@ -23,7 +23,7 @@ export const STATUS_TONE = Object.fromEntries(
 export const EDITABLE_STATUSES = ['Draft', 'Needs Correction'];
 
 export const SEX_OPTIONS = ['Female', 'Male', 'Prefer not to say'];
-export const CIVIL_STATUS_OPTIONS = ['Single', 'Married', 'Widowed', 'Separated', 'Other'];
+export const CIVIL_STATUS_OPTIONS = ['Single', 'Married', 'Widowed', 'Separated'];
 export const YES_NO_OPTIONS = ['No', 'Yes'];
 /**
  * Beneficiary-facing income categories — ranged bands requested by the CSWD
@@ -120,8 +120,7 @@ export function damageExtentLabel(value) {
  */
 export const PUROK_OPTIONS = [
   'Purok 1', 'Purok 2', 'Purok 3', 'Purok 4',
-  'Purok 5', 'Purok 6', 'Purok 7', 'Purok 8',
-  'Other (specify)'
+  'Purok 5', 'Purok 6', 'Purok 7', 'Purok 8'
 ];
 
 /**

@@ -24,12 +24,16 @@ export const Input = forwardRef(function Input(
 });
 
 export const Select = forwardRef(function Select(
-  { id, name, options = [], placeholder, className = '', ...rest },
+  { id, name, options = [], placeholder, hidePlaceholder = false, className = '', ...rest },
   ref
 ) {
   return (
     <select ref={ref} id={id || name} name={name} className={`rg-input ${className}`} {...rest}>
-      {placeholder && <option value="">{placeholder}</option>}
+      {hidePlaceholder ? (
+        <option value="" disabled hidden />
+      ) : (
+        placeholder && <option value="">{placeholder}</option>
+      )}
       {options.map((opt) => (
         <option key={opt.value} value={opt.value}>
           {opt.label}

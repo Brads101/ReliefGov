@@ -910,7 +910,7 @@ function ScoringDetail({ id, onChanged }) {
         title="Current score"
         subtitle={
           current
-            ? `${current.source === 'manual' ? 'Authorized manual correction' : 'Random Forest classification'} · scored ${new Date(current.scored_at).toLocaleString()}`
+            ? `${current.source === 'manual' ? 'Authorized manual correction · ' : ''}Scored ${new Date(current.scored_at).toLocaleString()}`
             : undefined
         }
         actions={
@@ -971,40 +971,29 @@ function ScoringDetail({ id, onChanged }) {
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <div className="rounded-md border border-line bg-surface-muted/60 p-4">
-                <p className="text-[12px] uppercase tracking-wide text-slate-500">Priority category</p>
-                <p className="mt-1">
+                <span className="inline-block rounded-md bg-blue-100/90 border border-blue-200 px-2.5 py-0.5 text-[12px] font-bold uppercase tracking-wider text-blue-900 shadow-2xs">
+                  Priority category
+                </span>
+                <p className="mt-2.5">
                   <Badge tone={meta?.tone || 'neutral'} className="text-[13px]">
                     {meta?.label || current.class}
                   </Badge>
                 </p>
-                <p className="mt-2 text-[12px] text-slate-500">
-                  The model's classification. A human reviewer decides assistance — this category only orders the
-                  review queue.
-                </p>
               </div>
               <div className="rounded-md border border-line bg-surface-muted/60 p-4">
-                <p className="text-[12px] uppercase tracking-wide text-slate-500">Priority score</p>
-                <p className="mt-1 text-2xl font-semibold tabular-nums text-navy-900">
+                <span className="inline-block rounded-md bg-blue-100/90 border border-blue-200 px-2.5 py-0.5 text-[12px] font-bold uppercase tracking-wider text-blue-900 shadow-2xs">
+                  Priority score
+                </span>
+                <p className="mt-2 text-2xl font-semibold tabular-nums text-navy-900">
                   {displayPriorityScore(current.score, current.class)?.toFixed(2)}
                 </p>
-                <p className="mt-0.5 text-[12px] tabular-nums text-slate-500">
-                  {Number(current.score) === 0 && current.class === 'Low'
-                    ? `Baseline reference score (Band ${priorityScoreBand(current.class)})`
-                    : `Reference band ${priorityScoreBand(current.class)}`}
-                </p>
-                <p className="mt-2 text-[12px] text-slate-500">
-                  A 0–100 conversion of the model's vote distribution, used for sorting only. Low priority uses a 12.50
-                  baseline reference score so records have an active reference number instead of 0.00.
-                </p>
               </div>
               <div className="rounded-md border border-line bg-surface-muted/60 p-4">
-                <p className="text-[12px] uppercase tracking-wide text-slate-500">Model agreement</p>
-                <p className="mt-1 text-2xl font-semibold tabular-nums text-navy-900">
+                <span className="inline-block rounded-md bg-blue-100/90 border border-blue-200 px-2.5 py-0.5 text-[12px] font-bold uppercase tracking-wider text-blue-900 shadow-2xs">
+                  Model agreement
+                </span>
+                <p className="mt-2 text-2xl font-semibold tabular-nums text-navy-900">
                   {current.confidence != null ? `${(current.confidence * 100).toFixed(0)}%` : '—'}
-                </p>
-                <p className="mt-2 text-[12px] text-slate-500">
-                  Share of trees voting for the winning category. Agreement among trees — not a statistical confidence
-                  interval.
                 </p>
               </div>
             </div>

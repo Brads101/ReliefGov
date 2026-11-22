@@ -52,7 +52,7 @@ function MyApplicationPanel() {
   const application = bundle?.application;
   if (!application) {
     return (
-      <Card title="Your assistance application" subtitle="Visible only to your account">
+      <Card title="Your assistance application">
         <EmptyState
           title="No application started yet"
           description="Complete the beneficiary form for Barangay Tambacan to apply for disaster assistance. You can save your progress as a draft and submit when everything is ready."

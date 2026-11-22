@@ -158,16 +158,23 @@ export default function ApplicationForm() {
         }
         return result.application;
       } catch (err) {
+        let detailText = '';
         if (err.details && typeof err.details === 'object') {
           setErrors((prev) => ({ ...prev, ...err.details }));
+          const entries = Object.entries(err.details);
+          if (entries.length > 0) {
+            detailText = entries.map(([, msg]) => msg).join(' ');
+            const first = entries[0][0];
+            const target = first && FIELD_STEP[first];
+            const index = FORM_STEPS.findIndex((s) => s.key === target);
+            if (index >= 0) setStepIndex(index);
+          }
         }
-        setBanner({ level: 'error', message: err.message });
-        if (!silent) {
-          const first = Object.keys(err.details || {})[0];
-          const target = first && FIELD_STEP[first];
-          const index = FORM_STEPS.findIndex((s) => s.key === target);
-          if (index >= 0) setStepIndex(index);
-        }
+        setBanner({
+          level: 'error',
+          message: detailText ? `${err.message} ${detailText}` : err.message
+        });
+        window.scrollTo({ top: 0 });
         return null;
       } finally {
         setSaving(false);
@@ -328,22 +335,24 @@ export default function ApplicationForm() {
     if (!chosen || !activeUploadPurpose) return;
     const targetPurpose = activeUploadPurpose;
 
-    if (chosen.size > MAX_FILE_BYTES) {
-      setDocFeedback({
-        level: 'error',
-        purpose: targetPurpose,
-        message: `The file is ${formatBytes(chosen.size)} — the maximum is 5 MB. Try a smaller photo or PDF scan.`
-      });
-      event.target.value = '';
-      return;
-    }
-
     const mime = await sniffFileMime(chosen);
     if (!mime) {
       setDocFeedback({
         level: 'error',
         purpose: targetPurpose,
         message: 'Only PDF, JPEG, or PNG files are supported. If your photo is HEIC/WEBP, save or convert it as JPG first.'
+      });
+      event.target.value = '';
+      return;
+    }
+
+    // PDFs cannot be compressed client-side, so enforce 5 MB immediately;
+    // JPEG/PNG images are compressed via HTML5 Canvas before upload.
+    if (mime === 'application/pdf' && chosen.size > MAX_FILE_BYTES) {
+      setDocFeedback({
+        level: 'error',
+        purpose: targetPurpose,
+        message: `The file is ${formatBytes(chosen.size)} — the maximum is 5 MB. Try a smaller PDF scan.`
       });
       event.target.value = '';
       return;
@@ -359,7 +368,15 @@ export default function ApplicationForm() {
         onProgress: setUploadPct
       });
       await refresh();
-      setDocFeedback(null);
+      if (uploaded?.duplicate_photo_warning?.matched) {
+        setDocFeedback({
+          level: 'warning',
+          purpose: targetPurpose,
+          message: uploaded.duplicate_photo_warning.message
+        });
+      } else {
+        setDocFeedback(null);
+      }
     } catch (err) {
       setDocFeedback({
         level: 'error',
@@ -519,7 +536,6 @@ export default function ApplicationForm() {
                   htmlFor="is_pwd"
                   required
                   error={errors.is_pwd}
-                  hint={form.is_pwd === 'Yes' ? 'A PWD ID will be required in the Documents step.' : undefined}
                 >
                   <Select
                     name="is_pwd"
@@ -562,7 +578,7 @@ export default function ApplicationForm() {
                     name="purok"
                     value={form.purok}
                     onChange={set('purok')}
-                    placeholder="Select your purok…"
+                    hidePlaceholder
                     options={toSelectOptions(PUROK_OPTIONS)}
                   />
                 </Field>
@@ -587,7 +603,7 @@ export default function ApplicationForm() {
                     name="house_status"
                     value={form.house_status}
                     onChange={set('house_status')}
-                    placeholder="Select…"
+                    hidePlaceholder
                     options={toSelectOptions(houseStatusOptions(form.house_status))}
                   />
                 </Field>
@@ -601,7 +617,7 @@ export default function ApplicationForm() {
                     name="incident_type"
                     value={form.incident_type}
                     onChange={set('incident_type')}
-                    placeholder="Select…"
+                    hidePlaceholder
                     options={toSelectOptions(incidentTypeOptions(form.incident_type))}
                   />
                 </Field>
@@ -630,19 +646,12 @@ export default function ApplicationForm() {
                   htmlFor="damage_extent"
                   required
                   error={errors.damage_extent}
-                  hint={
-                    isFloodPronePurok(form.purok)
-                      ? 'Showing flood hazard options for coastal / riverbank zone (Puroks 1–4)'
-                      : form.purok && /purok\s*0?[5-8]/i.test(form.purok)
-                      ? 'Showing flood hazard options for inland zone (Puroks 5–8)'
-                      : undefined
-                  }
                 >
                   <Select
                     name="damage_extent"
                     value={form.damage_extent}
                     onChange={set('damage_extent')}
-                    placeholder="Select…"
+                    hidePlaceholder
                     options={getDamageExtentOptions(form.purok)}
                   />
                 </Field>
@@ -679,8 +688,11 @@ export default function ApplicationForm() {
                   className="hidden"
                 />
 
-                {docFeedback && docFeedback.level === 'error' && (
-                  <InlineAlert level="error" title="Upload error">
+                {docFeedback && (docFeedback.level === 'error' || docFeedback.level === 'warning') && (
+                  <InlineAlert
+                    level={docFeedback.level}
+                    title={docFeedback.level === 'warning' ? 'Duplicate damage photo detected' : 'Upload error'}
+                  >
                     {docFeedback.message}
                   </InlineAlert>
                 )}
@@ -928,7 +940,7 @@ export default function ApplicationForm() {
             {step.key === 'review' && (
               <div className="space-y-4">
                 <InlineAlert level="info">
-                  Review your answers carefully. After submitting you cannot edit the application
+                  Review your application carefully. After submitting you cannot edit the application
                   unless the barangay office requests a correction.
                 </InlineAlert>
 

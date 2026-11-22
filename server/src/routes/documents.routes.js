@@ -36,12 +36,16 @@ router.get('/', async (req, res, next) => {
 router.post('/', async (req, res, next) => {
   try {
     const body = req.body || {};
-    const document = await uploadDocument(req.user, {
+    const { document, duplicate_photo_warning } = await uploadDocument(req.user, {
       file: body.file,
       beneficiary_id: body.beneficiary_id,
-      purpose: body.purpose
+      purpose: body.purpose,
+      phash: body.phash
     });
-    res.status(201).json({ document });
+    res.status(201).json({
+      document,
+      ...(duplicate_photo_warning ? { duplicate_photo_warning } : {})
+    });
   } catch (err) {
     next(err);
   }

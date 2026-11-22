@@ -3,6 +3,14 @@ import { supabaseAdmin } from '../lib/supabase.js';
 import { badRequest, forbidden, notFound, HttpError } from '../lib/errors.js';
 import { ROLES } from './authService.js';
 import { notify } from './notificationService.js';
+import { reconcilePhotoDuplicateFlags } from './validationService.js';
+import {
+  sha256Short,
+  sanitizePhash,
+  buildFingerprintTag,
+  parseFingerprintFromPath,
+  comparePhotoFingerprints
+} from '../lib/photoHash.js';
 
 /**
  * Supporting-document storage (private Supabase Storage bucket).
@@ -90,7 +98,47 @@ async function resolveBeneficiary(user, beneficiaryId) {
   return data;
 }
 
-export async function uploadDocument(user, { file, beneficiary_id, purpose }) {
+async function checkDuplicateDamagePhoto(user, beneficiary, currentFp) {
+  if (!beneficiary?.id || !currentFp) return null;
+  try {
+    const { data: otherDocs, error } = await supabaseAdmin
+      .from('documents')
+      .select('id, beneficiary_id, uploaded_by, storage_path, file_name')
+      .eq('purpose', 'Damage photos')
+      .neq('status', 'Rejected')
+      .neq('beneficiary_id', beneficiary.id)
+      .neq('uploaded_by', user.id)
+      .not('beneficiary_id', 'is', null);
+    if (error || !otherDocs?.length) return null;
+
+    let bestMatch = null;
+    for (const doc of otherDocs) {
+      const otherFp = parseFingerprintFromPath(doc.storage_path);
+      if (!otherFp) continue;
+      const cmp = comparePhotoFingerprints(currentFp, otherFp);
+      if (cmp.matched && (!bestMatch || cmp.similarity > bestMatch.similarity)) {
+        bestMatch = { ...cmp, matched_beneficiary_id: doc.beneficiary_id };
+      }
+    }
+    if (!bestMatch) return null;
+
+    const pct = Math.round(bestMatch.similarity * 100);
+    return {
+      matched: true,
+      exact: bestMatch.exact,
+      similarity: bestMatch.similarity,
+      confidence: bestMatch.confidence,
+      message: bestMatch.exact
+        ? 'This exact damage photo was already uploaded on another application. It will be flagged for CSWD verification.'
+        : `This damage photo closely matches (${pct}% visual similarity) a photo already submitted on another application. It will be flagged for CSWD verification.`
+    };
+  } catch (err) {
+    console.warn('[ReliefGov] duplicate photo pre-check failed:', err.message);
+    return null;
+  }
+}
+
+export async function uploadDocument(user, { file, beneficiary_id, purpose, phash }) {
   if (!user) throw forbidden();
   const { mime, buffer, extension } = decodeDataUrl(file);
 
@@ -109,7 +157,11 @@ export async function uploadDocument(user, { file, beneficiary_id, purpose }) {
 
   const beneficiary = await resolveBeneficiary(user, beneficiary_id);
 
-  const storagePath = `${user.id}/${crypto.randomUUID()}-${safeFileName(file.name)}${extension}`;
+  // Embed SHA-256 + optional perceptual hash into storage_path (zero DB schema changes).
+  const sha16 = sha256Short(buffer);
+  const cleanPhash = mime.startsWith('image/') ? sanitizePhash(phash) : null;
+  const fpTag = buildFingerprintTag(sha16, cleanPhash);
+  const storagePath = `${user.id}/${crypto.randomUUID()}-${fpTag}-${safeFileName(file.name)}${extension}`;
 
   const { error: uploadError } = await supabaseAdmin.storage
     .from(BUCKET)
@@ -141,7 +193,17 @@ export async function uploadDocument(user, { file, beneficiary_id, purpose }) {
     }
     throw new HttpError(500, `Document record failed: ${error.message}`);
   }
-  return data;
+
+  const duplicate_photo_warning =
+    normalizedPurpose === 'Damage photos'
+      ? await checkDuplicateDamagePhoto(user, beneficiary, { sha16, phash: cleanPhash })
+      : null;
+
+  if (normalizedPurpose === 'Damage photos' && beneficiary?.id) {
+    await reconcilePhotoDuplicateFlags(beneficiary.id);
+  }
+
+  return { document: data, duplicate_photo_warning };
 }
 
 /** Lists documents the user is allowed to see (own uploads, or all for staff). */
@@ -208,6 +270,13 @@ export async function deleteDocument(user, id) {
   if (error) throw new HttpError(500, error.message);
   const { error: storageError } = await supabaseAdmin.storage.from(BUCKET).remove([doc.storage_path]);
   if (storageError) console.warn('[ReliefGov] storage remove failed:', storageError.message);
+
+  // If a damage photo was removed, clear/downgrade any open duplicate-photo flags
+  // that no longer have a matching photo.
+  if (doc.purpose === 'Damage photos' && doc.beneficiary_id) {
+    await reconcilePhotoDuplicateFlags(doc.beneficiary_id);
+  }
+
   return { ok: true };
 }
 
@@ -248,6 +317,10 @@ export async function updateDocumentStatus(user, id, input) {
     .select(DOCUMENT_COLUMNS)
     .maybeSingle();
   if (error) throw new HttpError(500, error.message);
+
+  if (doc.purpose === 'Damage photos' && doc.beneficiary_id) {
+    await reconcilePhotoDuplicateFlags(doc.beneficiary_id);
+  }
 
   let returnedForCorrection = false;
   if (status === 'Rejected' && doc.beneficiary_id) {

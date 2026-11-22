@@ -152,54 +152,361 @@ function QueueStatusView({ queue = {} }) {
 }
 
 /** 2. Geographic Distribution by Purok (Ranked Caseload) */
+/** 2. Interactive Barangay Tambacan Geographic Zone Map (Choropleth) */
+const TAMBACAN_ZONES = [
+  // Coastal / Riverbank Flood-Prone Zone (Puroks 1–4)
+  {
+    num: 1,
+    label: 'Purok 1',
+    coastal: true,
+    path: 'M 108 58 L 222 46 L 236 108 L 138 122 L 100 98 Z',
+    cx: 170,
+    cy: 84
+  },
+  {
+    num: 2,
+    label: 'Purok 2',
+    coastal: true,
+    path: 'M 100 98 L 138 122 L 236 108 L 246 168 L 122 174 L 94 140 Z',
+    cx: 170,
+    cy: 142
+  },
+  {
+    num: 3,
+    label: 'Purok 3',
+    coastal: true,
+    path: 'M 94 140 L 122 174 L 246 168 L 254 226 L 132 232 L 102 196 Z',
+    cx: 174,
+    cy: 200
+  },
+  {
+    num: 4,
+    label: 'Purok 4',
+    coastal: true,
+    path: 'M 102 196 L 132 232 L 254 226 L 266 284 L 154 288 L 114 252 Z',
+    cx: 184,
+    cy: 258
+  },
+  // Inland / Lower Flood Risk Zone (Puroks 5–8)
+  {
+    num: 5,
+    label: 'Purok 5',
+    coastal: false,
+    path: 'M 222 46 L 368 42 L 382 106 L 236 108 Z',
+    cx: 302,
+    cy: 76
+  },
+  {
+    num: 6,
+    label: 'Purok 6',
+    coastal: false,
+    path: 'M 236 108 L 382 106 L 400 174 L 246 168 Z',
+    cx: 316,
+    cy: 140
+  },
+  {
+    num: 7,
+    label: 'Purok 7',
+    coastal: false,
+    path: 'M 246 168 L 400 174 L 418 236 L 254 226 Z',
+    cx: 330,
+    cy: 202
+  },
+  {
+    num: 8,
+    label: 'Purok 8',
+    coastal: false,
+    path: 'M 254 226 L 418 236 L 434 286 L 266 284 Z',
+    cx: 344,
+    cy: 260
+  }
+];
+
+function extractPurokNum(name) {
+  const m = String(name || '').match(/(\d+)/);
+  return m ? Number(m[1]) : null;
+}
+
+function choroplethFill(count, max) {
+  if (!count || count <= 0) return '#e8f1f8';
+  const ratio = count / Math.max(max, 1);
+  if (ratio >= 0.75) return '#0f3d64';
+  if (ratio >= 0.45) return '#156082';
+  if (ratio >= 0.25) return '#1d8499';
+  if (ratio >= 0.12) return '#4ea8b8';
+  return '#a8d5e2';
+}
+
 function PurokDistributionView({ puroks = [], total = 0 }) {
-  const visible = puroks.slice(0, 7);
-  const max = Math.max(...visible.map((p) => p.count), 1);
-  const topPurok = visible[0];
+  const [activeNum, setActiveNum] = useState(null);
+
+  // Aggregate counts by Purok 1..8 (handling formats like "Purok 1", "PUROK 01", "Purok 1-A")
+  const countByNum = {};
+  for (let i = 1; i <= 8; i += 1) countByNum[i] = 0;
+  for (const p of puroks) {
+    const n = extractPurokNum(p.purok);
+    if (n && n >= 1 && n <= 8) {
+      countByNum[n] += Number(p.count) || 0;
+    }
+  }
+
+  const maxCount = Math.max(...Object.values(countByNum), 1);
+  const coastalCount = countByNum[1] + countByNum[2] + countByNum[3] + countByNum[4];
+  const inlandCount = countByNum[5] + countByNum[6] + countByNum[7] + countByNum[8];
+  const coastalShare = total > 0 ? Math.round((coastalCount / total) * 100) : 0;
+  const inlandShare = total > 0 ? Math.round((inlandCount / total) * 100) : 0;
+
+  // Default focused purok = highest density purok
+  let topNum = 1;
+  for (let i = 2; i <= 8; i += 1) {
+    if (countByNum[i] > countByNum[topNum]) topNum = i;
+  }
+  const focusedNum = activeNum ?? topNum;
+  const focusedZone = TAMBACAN_ZONES.find((z) => z.num === focusedNum) || TAMBACAN_ZONES[0];
+  const focusedCount = countByNum[focusedNum] || 0;
+  const focusedShare = total > 0 ? Math.round((focusedCount / total) * 100) : 0;
 
   return (
-    <div className="space-y-3">
-      {topPurok && (
-        <div className="flex items-center justify-between rounded-md bg-gov-50/70 border border-gov-100 px-3 py-2 text-xs">
-          <span className="text-gov-800 font-medium flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-gov-600" />
-            Highest density: <strong>{topPurok.purok}</strong>
-          </span>
-          <span className="font-bold text-gov-700 tabular-nums">
-            {topPurok.count} of {total} records ({total > 0 ? Math.round((topPurok.count / total) * 100) : 0}%)
-          </span>
-        </div>
-      )}
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-12 lg:items-center">
+      {/* Left: Featured Interactive Barangay Tambacan Choropleth Map */}
+      <div className="space-y-2.5 lg:col-span-7">
+        <div className="relative overflow-hidden rounded-xl border border-slate-200/90 bg-gradient-to-br from-sky-50/80 via-slate-50 to-white p-3">
+          <svg
+            viewBox="0 0 510 315"
+            className="h-auto w-full select-none"
+            role="img"
+            aria-label="Interactive choropleth zone map of Barangay Tambacan showing beneficiary density across Puroks 1 to 8"
+          >
+            {/* Iligan Bay & Tambacan River Backdrop */}
+            <path
+              d="M 0 0 L 120 0 C 96 70, 82 140, 92 210 C 98 255, 118 288, 145 315 L 0 315 Z"
+              fill="#dbeeff"
+            />
+            <path
+              d="M 88 0 C 120 26, 210 34, 385 32 L 510 24 L 510 0 Z"
+              fill="#dbeeff"
+            />
+            {/* Subtle water contour lines */}
+            <path
+              d="M 20 65 Q 50 58, 74 68 M 14 145 Q 44 138, 68 148 M 22 230 Q 52 224, 78 234"
+              fill="none"
+              stroke="#93c5fd"
+              strokeWidth="1.2"
+              strokeLinecap="round"
+              opacity="0.7"
+            />
 
-      <div className="space-y-2.5">
-        {visible.map((p, idx) => {
-          const pct = Math.round((p.count / max) * 100);
-          const share = total > 0 ? Math.round((p.count / total) * 100) : 0;
-          return (
-            <div key={p.purok || idx} className="space-y-1">
-              <div className="flex items-center justify-between text-[12.5px]">
-                <div className="flex items-center gap-2">
-                  <span className={`flex h-4 w-4 items-center justify-center rounded text-[10px] font-bold ${
-                    idx === 0 ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600'
-                  }`}>
-                    {idx + 1}
-                  </span>
-                  <span className="font-medium text-navy-900">{p.purok || '—'}</span>
-                </div>
-                <div className="flex items-center gap-2 text-xs font-mono">
-                  <span className="text-slate-400">({share}%)</span>
-                  <span className="font-semibold text-navy-900 tabular-nums">{p.count}</span>
-                </div>
-              </div>
-              <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-gov-600 to-teal-500 transition-all duration-500"
-                  style={{ width: `${pct}%` }}
-                />
-              </div>
-            </div>
-          );
-        })}
+            {/* Geographic Water Labels */}
+            <text
+              x="44"
+              y="185"
+              transform="rotate(-90 44 185)"
+              fill="#3b82f6"
+              fontSize="10"
+              fontWeight="700"
+              letterSpacing="2"
+              opacity="0.75"
+            >
+              ILIGAN BAY
+            </text>
+            <text
+              x="215"
+              y="21"
+              fill="#2563eb"
+              fontSize="9.5"
+              fontWeight="700"
+              letterSpacing="1.8"
+              opacity="0.75"
+            >
+              TAMBACAN RIVER
+            </text>
+
+            {/* Compass Rose (Top Right) */}
+            <g transform="translate(474, 52)">
+              <circle cx="0" cy="0" r="14" fill="#ffffff" stroke="#cbd5e1" strokeWidth="1" />
+              <polygon points="0,-9 3,0 0,-2 -3,0" fill="#0f2942" />
+              <polygon points="0,9 3,0 0,2 -3,0" fill="#94a3b8" />
+              <text x="0" y="-17" textAnchor="middle" fontSize="8.5" fontWeight="700" fill="#475569">
+                N
+              </text>
+            </g>
+
+            {/* Subtle Inland Road Grid */}
+            <path
+              d="M 430 60 L 490 68 M 425 140 L 495 148 M 438 220 L 495 228"
+              stroke="#e2e8f0"
+              strokeWidth="1.2"
+              strokeDasharray="3 3"
+            />
+
+            {/* Purok 1–8 Polygons */}
+            {TAMBACAN_ZONES.map((z) => {
+              const count = countByNum[z.num] || 0;
+              const ratio = count / maxCount;
+              const fill = choroplethFill(count, maxCount);
+              const isDark = ratio >= 0.25 && count > 0;
+              const isFocused = z.num === focusedNum;
+              const isTop = z.num === topNum && count > 0;
+
+              return (
+                <g
+                  key={z.num}
+                  className="cursor-pointer transition-opacity"
+                  onMouseEnter={() => setActiveNum(z.num)}
+                  onFocus={() => setActiveNum(z.num)}
+                  onClick={() => setActiveNum(z.num)}
+                  tabIndex={0}
+                  role="button"
+                  aria-label={`${z.label}: ${count} records (${total > 0 ? Math.round((count / total) * 100) : 0}%)`}
+                >
+                  <path
+                    d={z.path}
+                    fill={fill}
+                    stroke={isFocused ? '#f59e0b' : '#ffffff'}
+                    strokeWidth={isFocused ? '2.8' : '1.6'}
+                    strokeLinejoin="round"
+                    opacity={activeNum && !isFocused ? 0.84 : 1}
+                  />
+
+                  {/* Purok Label */}
+                  <text
+                    x={z.cx}
+                    y={z.cy + 4}
+                    textAnchor="middle"
+                    fontSize="12"
+                    fontWeight="700"
+                    fill={isDark ? '#ffffff' : '#0f2942'}
+                  >
+                    {z.label}
+                  </text>
+                </g>
+              );
+            })}
+
+            {/* Dashed Coastal Flood-Zone Divider between P1-4 and P5-8 */}
+            <path
+              d="M 222 46 L 236 108 L 246 168 L 254 226 L 266 284"
+              fill="none"
+              stroke="#d97706"
+              strokeWidth="2"
+              strokeDasharray="5 4"
+              pointerEvents="none"
+            />
+            <text
+              x="175"
+              y="305"
+              textAnchor="middle"
+              fontSize="9"
+              fontWeight="700"
+              fill="#b45309"
+            >
+              ▲ COASTAL FLOOD ZONE (P1–4)
+            </text>
+            <text
+              x="345"
+              y="305"
+              textAnchor="middle"
+              fontSize="9"
+              fontWeight="700"
+              fill="#0e7c7b"
+            >
+              INLAND ZONE (P5–8)
+            </text>
+          </svg>
+        </div>
+
+        {/* Density Color Legend */}
+        <div className="flex items-center justify-center gap-2 px-1 text-[11px] text-slate-500">
+          <div className="flex items-center gap-1.5">
+            <span>Low</span>
+            <span className="h-2.5 w-4 rounded-xs" style={{ backgroundColor: '#e8f1f8' }} />
+            <span className="h-2.5 w-4 rounded-xs" style={{ backgroundColor: '#a8d5e2' }} />
+            <span className="h-2.5 w-4 rounded-xs" style={{ backgroundColor: '#4ea8b8' }} />
+            <span className="h-2.5 w-4 rounded-xs" style={{ backgroundColor: '#1d8499' }} />
+            <span className="h-2.5 w-4 rounded-xs" style={{ backgroundColor: '#0f3d64' }} />
+            <span>High</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Right: Live Zone Spotlight, Coastal vs Inland Breakdown & Purok Grid */}
+      <div className="space-y-3 lg:col-span-5">
+        {/* Selected / Hovered Purok Spotlight */}
+        <div className="rounded-xl border border-gov-200/80 bg-gradient-to-br from-gov-50/80 via-white to-white p-3.5 shadow-2xs">
+          <div className="flex items-center justify-between gap-2">
+            <span className="rounded-md bg-gov-700 px-2 py-0.5 text-xs font-bold text-white">
+              {focusedZone.label}
+            </span>
+            <span
+              className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                focusedZone.coastal
+                  ? 'bg-amber-100 text-amber-900'
+                  : 'bg-teal-100 text-teal-900'
+              }`}
+            >
+              {focusedZone.coastal ? 'Coastal Flood Zone' : 'Inland Zone'}
+            </span>
+          </div>
+          <div className="mt-2.5 flex items-baseline gap-2">
+            <span className="text-3xl font-bold tabular-nums text-navy-950">{focusedCount}</span>
+            <span className="text-xs font-semibold text-slate-500">
+              of {total} records ({focusedShare}%)
+            </span>
+          </div>
+          <p className="mt-1 text-[11.5px] text-slate-500">
+            {focusedZone.coastal
+              ? 'Waterfront / riverbank high flood hazard sub-zone'
+              : 'Inland / lower flood risk sub-zone'}
+          </p>
+        </div>
+
+        {/* Coastal vs. Inland Summary Cards */}
+        <div className="grid grid-cols-2 gap-2">
+          <div className="rounded-lg border border-amber-200/90 bg-amber-50/70 px-3 py-2.5">
+            <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-amber-900">
+              <span className="h-2 w-2 rounded-full bg-amber-500" />
+              Coastal (P1–4)
+            </p>
+            <p className="mt-1 text-lg font-bold tabular-nums text-amber-950">
+              {coastalCount}{' '}
+              <span className="text-xs font-semibold text-amber-800">({coastalShare}%)</span>
+            </p>
+          </div>
+          <div className="rounded-lg border border-teal-200/80 bg-teal-50/60 px-3 py-2.5">
+            <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-teal-900">
+              <span className="h-2 w-2 rounded-full bg-teal-600" />
+              Inland (P5–8)
+            </p>
+            <p className="mt-1 text-lg font-bold tabular-nums text-teal-950">
+              {inlandCount}{' '}
+              <span className="text-xs font-semibold text-teal-800">({inlandShare}%)</span>
+            </p>
+          </div>
+        </div>
+
+        {/* Quick-Select Purok 1–8 Grid */}
+        <div className="grid grid-cols-4 gap-1.5">
+          {TAMBACAN_ZONES.map((z) => {
+            const count = countByNum[z.num] || 0;
+            const isFocused = z.num === focusedNum;
+            return (
+              <button
+                key={z.num}
+                type="button"
+                onMouseEnter={() => setActiveNum(z.num)}
+                onClick={() => setActiveNum(z.num)}
+                className={`rounded-lg border px-2 py-1.5 text-left transition-colors ${
+                  isFocused
+                    ? 'border-gov-600 bg-gov-50 ring-1 ring-gov-200'
+                    : 'border-slate-200/80 bg-white hover:border-slate-300 hover:bg-slate-50'
+                }`}
+              >
+                <p className="text-[10.5px] font-semibold text-slate-500">Purok {z.num}</p>
+                <p className="text-sm font-bold tabular-nums text-navy-950">{count}</p>
+              </button>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
@@ -450,26 +757,34 @@ export default function Analytics() {
           aside={livePill}
         >
           <div className="grid gap-4 lg:grid-cols-2">
-            <Figure
-              title="Application queue by status"
-            >
-              <QueueStatusView queue={queue} />
-            </Figure>
+            <div className="lg:col-span-2">
+              <Figure
+                title="Geographic density by purok"
+                highlightTitle
+              >
+                <PurokDistributionView puroks={puroks} total={queue.total || 0} />
+              </Figure>
+            </div>
 
-            <Figure
-              title="Geographic density by purok"
-            >
-              <PurokDistributionView puroks={puroks} total={queue.total || 0} />
-            </Figure>
+            <div className="lg:col-span-2">
+              <Figure
+                title="Application queue by status"
+                highlightTitle
+              >
+                <QueueStatusView queue={queue} />
+              </Figure>
+            </div>
 
             <Figure
               title="Vulnerability scoring readiness"
+              highlightTitle
             >
               <ScoringCoverageView scoring={scoring} total={scoreTotal} />
             </Figure>
 
             <Figure
               title="Priority category distribution"
+              highlightTitle
             >
               {classTotal > 0 ? (
                 <PriorityCategoryView classCounts={classCounts} total={classTotal} />

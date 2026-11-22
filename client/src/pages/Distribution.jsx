@@ -394,7 +394,7 @@ function RecordDistributionDialog({ onClose, onRecorded }) {
   const [search, setSearch] = useState('');
   const [approvedList, setApprovedList] = useState([]);
   const [loadingEligible, setLoadingEligible] = useState(true);
-  const [selected, setSelected] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]);
   const [form, setForm] = useState({
     assistance_type: ASSISTANCE_TYPES.length === 1 ? ASSISTANCE_TYPES[0] : '',
     quantity: '1',
@@ -435,9 +435,32 @@ function RecordDistributionDialog({ onClose, onRecorded }) {
     });
   }, [approvedList, search]);
 
+  const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const allFilteredSelected =
+    filteredCandidates.length > 0 && filteredCandidates.every((r) => selectedSet.has(r.id));
+
+  const toggleOne = (id) => {
+    setError(null);
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  };
+
+  const toggleSelectAll = () => {
+    setError(null);
+    if (allFilteredSelected) {
+      const visibleIds = new Set(filteredCandidates.map((r) => r.id));
+      setSelectedIds((prev) => prev.filter((id) => !visibleIds.has(id)));
+    } else {
+      setSelectedIds((prev) => {
+        const merged = new Set(prev);
+        for (const r of filteredCandidates) merged.add(r.id);
+        return Array.from(merged);
+      });
+    }
+  };
+
   const submit = async () => {
-    if (!selected) {
-      setError({ message: 'Choose an approved beneficiary from the list first.' });
+    if (selectedIds.length === 0) {
+      setError({ message: 'Choose at least one approved beneficiary (or click Select all).' });
       return;
     }
     if (!form.assistance_type) {
@@ -447,15 +470,59 @@ function RecordDistributionDialog({ onClose, onRecorded }) {
     setBusy(true);
     setError(null);
     try {
-      const body = {
-        beneficiary_id: selected.id,
-        assistance_type: form.assistance_type,
-        quantity: Number(form.quantity)
-      };
-      if (form.notes.trim()) body.notes = form.notes.trim();
-      const res = await api('/distributions', { method: 'POST', body });
+      const qty = Number(form.quantity);
+      const trimmedNotes = form.notes.trim();
+
+      if (selectedIds.length === 1) {
+        const body = {
+          beneficiary_id: selectedIds[0],
+          assistance_type: form.assistance_type,
+          quantity: qty
+        };
+        if (trimmedNotes) body.notes = trimmedNotes;
+        const res = await api('/distributions', { method: 'POST', body });
+        onRecorded(
+          `${res.distribution.assistance_type} recorded for ${res.distribution.beneficiary?.full_name || 'the beneficiary'} (reference ${res.distribution.reference_no}).`
+        );
+        return;
+      }
+
+      // Batch record for all selected beneficiaries (5 concurrent requests at a time)
+      let succeeded = 0;
+      let firstError = null;
+      const BATCH = 5;
+      for (let i = 0; i < selectedIds.length; i += BATCH) {
+        const chunk = selectedIds.slice(i, i + BATCH);
+        const results = await Promise.allSettled(
+          chunk.map((beneficiaryId) => {
+            const body = {
+              beneficiary_id: beneficiaryId,
+              assistance_type: form.assistance_type,
+              quantity: qty
+            };
+            if (trimmedNotes) body.notes = trimmedNotes;
+            return api('/distributions', { method: 'POST', body });
+          })
+        );
+        for (const r of results) {
+          if (r.status === 'fulfilled') {
+            succeeded += 1;
+          } else if (!firstError) {
+            firstError = r.reason;
+          }
+        }
+      }
+
+      const failed = selectedIds.length - succeeded;
+      if (succeeded === 0) {
+        setError(firstError || { message: 'Could not record distributions for the selected beneficiaries.' });
+        return;
+      }
+
       onRecorded(
-        `${res.distribution.assistance_type} recorded for ${res.distribution.beneficiary?.full_name || 'the beneficiary'} (reference ${res.distribution.reference_no}).`
+        failed > 0
+          ? `${form.assistance_type} recorded for ${succeeded} approved beneficiaries (${failed} skipped).`
+          : `${form.assistance_type} recorded for all ${succeeded} selected approved beneficiaries.`
       );
     } catch (err) {
       setError(err);
@@ -475,7 +542,9 @@ function RecordDistributionDialog({ onClose, onRecorded }) {
             Cancel
           </Button>
           <Button onClick={submit} loading={busy}>
-            Record distribution
+            {selectedIds.length > 1
+              ? `Record distribution (${selectedIds.length})`
+              : 'Record distribution'}
           </Button>
         </>
       }
@@ -487,116 +556,118 @@ function RecordDistributionDialog({ onClose, onRecorded }) {
           </InlineAlert>
         )}
 
-        {!selected ? (
-          <div className="space-y-3">
-            <Field
-              label="Approved Beneficiary"
-              htmlFor="dist-beneficiary"
-              required
-            >
-              <div className="relative">
-                <Input
-                  id="dist-beneficiary"
-                  placeholder="Filter by name, reference number (TAM-26...), or purok..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  autoFocus
-                />
-                {search && (
-                  <button
-                    type="button"
-                    onClick={() => setSearch('')}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400 hover:text-slate-600"
-                  >
-                    Clear
-                  </button>
+        <div className="space-y-3">
+          <Field
+            label="Approved Beneficiaries"
+            htmlFor="dist-beneficiary"
+            required
+          >
+            <div className="relative">
+              <Input
+                id="dist-beneficiary"
+                placeholder="Filter by name, reference number (TAM-26...), or purok..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                autoFocus
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400 hover:text-slate-600"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+          </Field>
+
+          <div className="rounded-xl border border-slate-200/90 bg-white overflow-hidden shadow-2xs">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 bg-slate-50/80 px-3 py-2 text-xs">
+              <span className="font-bold uppercase tracking-wider text-slate-600">
+                Approved Beneficiaries ({filteredCandidates.length} eligible)
+                {selectedIds.length > 0 && (
+                  <span className="ml-1.5 rounded-full bg-gov-100 px-2 py-0.5 text-[11px] font-bold text-gov-800 normal-case">
+                    {selectedIds.length} selected
+                  </span>
                 )}
-              </div>
-            </Field>
+              </span>
+              {!loadingEligible && filteredCandidates.length > 0 && (
+                <button
+                  type="button"
+                  onClick={toggleSelectAll}
+                  className={`rounded-md px-2.5 py-1 text-[11.5px] font-bold transition-colors ${
+                    allFilteredSelected
+                      ? 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+                      : 'bg-gov-600 text-white hover:bg-gov-700'
+                  }`}
+                >
+                  {allFilteredSelected
+                    ? 'Deselect all'
+                    : `Select all (${filteredCandidates.length})`}
+                </button>
+              )}
+            </div>
 
-            <div className="rounded-xl border border-slate-200/90 bg-white overflow-hidden shadow-2xs">
-              <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/80 px-3 py-2 text-xs">
-                <span className="font-bold uppercase tracking-wider text-slate-600">
-                  Approved Beneficiaries ({filteredCandidates.length} eligible)
-                </span>
-                <span className="text-[11px] text-slate-400">Click a record to select</span>
+            {loadingEligible ? (
+              <div className="p-6 text-center text-sm text-slate-500">
+                Loading approved applicants…
               </div>
-
-              {loadingEligible ? (
-                <div className="p-6 text-center text-sm text-slate-500">
-                  Loading approved applicants…
-                </div>
-              ) : filteredCandidates.length === 0 ? (
-                <div className="p-6 text-center text-sm text-slate-500">
-                  {search.trim()
-                    ? `No approved applicants match "${search}".`
-                    : 'No approved applicants found in Barangay Tambacan.'}
-                </div>
-              ) : (
-                <ul className="max-h-56 divide-y divide-slate-100 overflow-y-auto">
-                  {filteredCandidates.map((r) => (
+            ) : filteredCandidates.length === 0 ? (
+              <div className="p-6 text-center text-sm text-slate-500">
+                {search.trim()
+                  ? `No approved applicants match "${search}".`
+                  : 'No approved applicants found in Barangay Tambacan.'}
+              </div>
+            ) : (
+              <ul className="max-h-56 divide-y divide-slate-100 overflow-y-auto">
+                {filteredCandidates.map((r) => {
+                  const checked = selectedSet.has(r.id);
+                  return (
                     <li key={r.id}>
                       <button
                         type="button"
-                        className="group flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left transition-colors hover:bg-sky-50/70"
-                        onClick={() => {
-                          setSelected(r);
-                          setError(null);
-                        }}
+                        className={`group flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left transition-colors ${
+                          checked ? 'bg-sky-50/90' : 'hover:bg-sky-50/50'
+                        }`}
+                        onClick={() => toggleOne(r.id)}
                       >
-                        <div className="min-w-0">
-                          <p className="truncate text-[13.5px] font-bold text-navy-950 group-hover:text-gov-700">
-                            {fullName(r)}
-                          </p>
-                          <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11.5px]">
-                            <span className="rounded bg-amber-50 px-1.5 py-0.5 font-mono text-[11px] font-bold text-amber-900 border border-amber-200/80">
-                              {r.beneficiary_number}
-                            </span>
-                            {r.purok && (
-                              <span className="text-slate-500">
-                                · {r.purok.startsWith('Purok') ? r.purok : `Purok ${r.purok}`}
+                        <div className="flex min-w-0 items-center gap-2.5">
+                          <span
+                            className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border text-[10px] font-bold transition-colors ${
+                              checked
+                                ? 'border-gov-600 bg-gov-600 text-white'
+                                : 'border-slate-300 bg-white text-transparent'
+                            }`}
+                            aria-hidden="true"
+                          >
+                            ✓
+                          </span>
+                          <div className="min-w-0">
+                            <p className="truncate text-[13.5px] font-bold text-navy-950 group-hover:text-gov-700">
+                              {fullName(r)}
+                            </p>
+                            <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11.5px]">
+                              <span className="rounded bg-amber-50 px-1.5 py-0.5 font-mono text-[11px] font-bold text-amber-900 border border-amber-200/80">
+                                {r.beneficiary_number}
                               </span>
-                            )}
+                              {r.purok && (
+                                <span className="text-slate-500">
+                                  · {r.purok.startsWith('Purok') ? r.purok : `Purok ${r.purok}`}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
                         <Badge tone="success">Approved</Badge>
                       </button>
                     </li>
-                  ))}
-                </ul>
-              )}
-            </div>
+                  );
+                })}
+              </ul>
+            )}
           </div>
-        ) : (
-          <div className="flex items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50/50 p-3.5 shadow-2xs">
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5">
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600 text-[11px] text-white font-bold">
-                  ✓
-                </span>
-                <p className="truncate text-sm font-bold text-navy-950">{fullName(selected)}</p>
-              </div>
-              <div className="mt-1 flex flex-wrap items-center gap-2 text-[12px]">
-                <span className="rounded bg-amber-100 px-1.5 py-0.5 font-mono text-[11px] font-bold text-amber-900 border border-amber-200">
-                  {selected.beneficiary_number}
-                </span>
-                {selected.purok && (
-                  <span className="text-slate-600">
-                    {selected.purok.startsWith('Purok') ? selected.purok : `Purok ${selected.purok}`}
-                  </span>
-                )}
-                <Badge tone="success">Approved</Badge>
-              </div>
-            </div>
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => setSelected(null)}
-            >
-              Change applicant
-            </Button>
-          </div>
-        )}
+        </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Quantity" htmlFor="dist-qty" required>
