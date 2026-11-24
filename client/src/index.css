@@ -6,6 +6,7 @@
   html {
     -webkit-text-size-adjust: 100%;
     color-scheme: light;
+    scroll-behavior: smooth;
   }
   body {
     @apply bg-slate-50/80 text-slate-900 antialiased;

@@ -51,6 +51,15 @@ export default function Register() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-surface px-5 py-10">
       <div className="w-full max-w-md">
+        <div className="mb-4">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-1.5 text-[12.5px] font-medium text-slate-500 transition-colors hover:text-gov-700"
+          >
+            <span aria-hidden="true">&larr;</span>
+            Back to Home
+          </Link>
+        </div>
         <div className="mb-6 flex items-center gap-3">
           <LogoMark className="h-10 w-10" />
           <div className="leading-tight">

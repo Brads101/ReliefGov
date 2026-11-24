@@ -90,6 +90,15 @@ export default function Login() {
       {/* Right — sign-in form */}
       <div className="flex w-full items-center justify-center px-5 py-12 lg:w-1/2 lg:px-10 xl:px-16">
         <div className="w-full max-w-md">
+          <div className="mb-4">
+            <Link
+              to="/"
+              className="inline-flex items-center gap-1.5 text-[12.5px] font-medium text-slate-500 transition-colors hover:text-gov-700"
+            >
+              <span aria-hidden="true">&larr;</span>
+              Back to Home
+            </Link>
+          </div>
           <div className="rounded-xl border border-line bg-white px-6 py-7 shadow-card sm:px-8 sm:py-8">
             <div className="mb-6 flex items-center gap-3 lg:hidden">
               <LogoMark className="h-10 w-10" />
